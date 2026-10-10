@@ -1,14 +1,20 @@
-#include <QGuiApplication>
+#include <QApplication>
 #include <QQmlApplicationEngine>
-#include <QQuickWindow>
+#include <QQmlContext>
+
+#include "Player/library.hpp"
 
 int main(int argc, char* argv[]) {
-    QGuiApplication app(argc, argv);
+    QApplication app(argc, argv);
 
     app.setOrganizationName("ZenithCollective");
     app.setApplicationName("ZenithPlayerDeluxe");
 
+    Player::Library library;
+
     QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty("library", &library);
+
     const QUrl url(QStringLiteral("qrc:/Main.qml"));
 
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreated,

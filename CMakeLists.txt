@@ -10,10 +10,14 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickControls2)
 
 add_executable(ZenithPlayerDeluxe
     Source/main.cpp
+    Source/Player/find.hpp
+    Source/Player/find.cpp
+    Source/Player/library.hpp
+    Source/Player/library.cpp
     Source/UI/qml.qrc
 )
 
@@ -24,6 +28,7 @@ target_include_directories(ZenithPlayerDeluxe PRIVATE
 target_link_libraries(ZenithPlayerDeluxe PRIVATE
     Qt6::Core
     Qt6::Gui
+    Qt6::Widgets
     Qt6::Qml
     Qt6::Quick
     Qt6::QuickControls2
