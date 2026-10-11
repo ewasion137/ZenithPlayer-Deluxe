@@ -282,100 +282,124 @@ Window {
                 clip: true
 
                 ListView {
-                    id: folderListView
-                    width: parent.width
-                    model: library.folders
-                    spacing: 6
+                id: folderListView
+                anchors.top: explorerHeader.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 10
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                spacing: 6
+                property var collapsedFolders: ({})
 
-                    delegate: Column {
-                        id: folderGroupItem
-                        width: folderListView.width
-                        spacing: 2
-                        property bool isOpen: true
-                        property var folderData: modelData
+                ScrollBar.vertical: ScrollBar {
+                    active: true
+                    width: 6
+                }
 
-                        Rectangle {
-                            width: parent.width
-                            height: 32
-                            radius: 4
-                            color: root.cSurface
-                            border.color: root.cBorder
+                model: library.folders
 
-                            Row {
-                                anchors.fill: parent
-                                anchors.leftMargin: 10
-                                spacing: 8
+                delegate: Column {
+                    id: folderGroupItem
+                    width: folderListView.width - 8
+                    spacing: 2
+                    property var folderData: modelData
+                    property bool isOpen: !folderListView.collapsedFolders[folderData.fullPath]
 
-                                Text {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: folderGroupItem.isOpen ? "▼" : "▶"
-                                    color: root.cAccent
-                                    font.pixelSize: 10
-                                }
+                    Rectangle {
+                        width: parent.width
+                        height: 32
+                        radius: 4
+                        color: root.cSurface
+                        border.color: root.cBorder
 
-                                Text {
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: folderGroupItem.folderData.folderName + " (" + folderGroupItem.folderData.tracks.length + ")"
-                                    color: root.cTextMain
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                    elide: Text.ElideRight
-                                    width: folderGroupItem.width - 45
-                                }
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: 10
+                            spacing: 8
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: folderGroupItem.isOpen ? "▼" : "▶"
+                                color: root.cAccent
+                                font.pixelSize: 10
                             }
 
-                            MouseArea {
-                                anchors.fill: parent
-                                onClicked: folderGroupItem.isOpen = !folderGroupItem.isOpen
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: folderGroupItem.folderData.folderName + " (" + folderGroupItem.folderData.tracks.length + ")"
+                                color: root.cTextMain
+                                font.pixelSize: 12
+                                font.bold: true
+                                elide: Text.ElideRight
+                                width: folderGroupItem.width - 45
                             }
                         }
 
-                        Column {
-                            width: parent.width
-                            visible: folderGroupItem.isOpen
-                            spacing: 1
-
-                            Repeater {
-                                model: folderGroupItem.folderData.tracks
-
-                                delegate: Rectangle {
-                                    id: trackItem
-                                    width: parent.width
-                                    height: 28
-                                    radius: 3
-                                    property var trackData: modelData
-                                    property bool isSelected: library.currentTrackPath === trackData.fullPath
-                                    color: isSelected ? "#231f3d" : (trackArea.containsMouse ? "#121520" : "transparent")
-
-                                    Rectangle {
-                                        width: 2
-                                        height: parent.height
-                                        color: root.cAccent
-                                        visible: trackItem.isSelected
-                                    }
-
-                                    Text {
-                                        anchors.left: parent.left
-                                        anchors.leftMargin: 18
-                                        anchors.right: parent.right
-                                        anchors.rightMargin: 8
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        text: trackItem.trackData.name
-                                        color: trackItem.isSelected ? "#ffffff" : root.cTextDim
-                                        font.pixelSize: 11
-                                        elide: Text.ElideRight
-                                    }
-
-                                    MouseArea {
-                                        id: trackArea
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        onClicked: library.setCurrentTrackPath(trackItem.trackData.fullPath)
-                                    }
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: {
+                                var updated = Object.assign({}, folderListView.collapsedFolders)
+                                var key = folderGroupItem.folderData.fullPath
+                                if (updated[key]) {
+                                    delete updated[key]
+                                } else {
+                                    updated[key] = true
                                 }
+                                folderListView.collapsedFolders = updated
                             }
                         }
                     }
+
+                    Column {
+                        width: parent.width
+                        visible: folderGroupItem.isOpen
+                        spacing: 1
+
+                        Repeater {
+                            model: folderGroupItem.isOpen ? folderGroupItem.folderData.tracks : []
+
+                            delegate: Rectangle {
+                                id: trackItem
+                                width: parent.width
+                                height: 28
+                                radius: 3
+                                property var trackData: modelData
+                                property bool isSelected: library.currentTrackPath === trackData.fullPath
+                                color: isSelected ? "#231f3d" : (trackArea.containsMouse ? "#121520" : "transparent")
+
+                                Rectangle {
+                                    width: 2
+                                    height: parent.height
+                                    color: root.cAccent
+                                    visible: trackItem.isSelected
+                                }
+
+                                Text {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 18
+                                    anchors.right: parent.right
+                                    anchors.rightMargin: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: trackItem.trackData.name
+                                    color: trackItem.isSelected ? "#ffffff" : root.cTextDim
+                                    font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+
+                                MouseArea {
+                                    id: trackArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: {
+                                        library.setCurrentTrackPath(trackItem.trackData.fullPath)
+                                        player.playTrack(trackItem.trackData.fullPath)
+                                    }
+                                }
+                            }
+                        }
+                    }}
                 }
             }
         }
