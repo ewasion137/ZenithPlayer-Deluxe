@@ -1,23 +1,22 @@
 #pragma once
 
-#include <filesystem>
-#include <string>
+#include <QString>
 #include <vector>
 
 namespace Player {
 
 struct TrackInfo {
-    std::string name;
-    std::string fullPath;
-    std::string extension;
+    QString name;
+    QString fullPath;
+    QString extension;
 };
 
 struct FolderGroup {
-    std::string folderName;
-    std::string fullPath;
+    QString folderName;
+    QString fullPath;
     std::vector<TrackInfo> tracks;
 };
 
-std::vector<FolderGroup> scanDirectory(const std::filesystem::path& rootPath);
+std::vector<FolderGroup> scanDirectory(const QString& rootPath);
 
 } // namespace Player

@@ -54,24 +54,24 @@ void Library::scanPath(const QString& rawPath) {
         path = QUrl(rawPath).toLocalFile();
     }
 
-    const auto groups = scanDirectory(path.toStdString());
+    const auto groups = scanDirectory(path);
 
     QVariantList folderList;
     folderList.reserve(static_cast<qsizetype>(groups.size()));
 
     for (const auto& group : groups) {
         QVariantMap folderMap;
-        folderMap["folderName"] = QString::fromStdString(group.folderName);
-        folderMap["fullPath"] = QString::fromStdString(group.fullPath);
+        folderMap["folderName"] = group.folderName;
+        folderMap["fullPath"] = group.fullPath;
 
         QVariantList trackList;
         trackList.reserve(static_cast<qsizetype>(group.tracks.size()));
 
         for (const auto& track : group.tracks) {
             QVariantMap trackMap;
-            trackMap["name"] = QString::fromStdString(track.name);
-            trackMap["fullPath"] = QString::fromStdString(track.fullPath);
-            trackMap["extension"] = QString::fromStdString(track.extension);
+            trackMap["name"] = track.name;
+            trackMap["fullPath"] = track.fullPath;
+            trackMap["extension"] = track.extension;
             trackList.append(trackMap);
         }
 
