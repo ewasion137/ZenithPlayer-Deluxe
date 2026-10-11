@@ -19,8 +19,7 @@ public:
     QString currentTrackPath() const;
     QString currentTrackName() const;
 
-    void setCurrentTrackPath(const QString& path);
-
+    Q_INVOKABLE void setCurrentTrackPath(const QString& path);
     Q_INVOKABLE void selectFolder();
     Q_INVOKABLE void scanPath(const QString& rawPath);
 

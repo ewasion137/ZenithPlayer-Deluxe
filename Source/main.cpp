@@ -1,6 +1,7 @@
 #include <QApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QQuickStyle>
 
 #include "Player/library.hpp"
 
@@ -9,6 +10,8 @@ int main(int argc, char* argv[]) {
 
     app.setOrganizationName("ZenithCollective");
     app.setApplicationName("ZenithPlayerDeluxe");
+
+    QQuickStyle::setStyle("Basic");
 
     Player::Library library;
 

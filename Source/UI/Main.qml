@@ -50,7 +50,6 @@ Window {
                 width: 44
                 height: parent.height
                 text: "-"
-                flat: true
                 contentItem: Text {
                     text: parent.text
                     color: root.cTextDim
@@ -66,7 +65,6 @@ Window {
                 width: 44
                 height: parent.height
                 text: "✕"
-                flat: true
                 contentItem: Text {
                     text: parent.text
                     color: root.cTextDim
@@ -171,7 +169,6 @@ Window {
                             width: 38
                             height: 38
                             text: "⏮"
-                            flat: true
                             contentItem: Text {
                                 text: parent.text
                                 color: root.cTextMain
@@ -190,7 +187,6 @@ Window {
                             width: 48
                             height: 48
                             text: "▶"
-                            flat: true
                             contentItem: Text {
                                 text: parent.text
                                 color: "#ffffff"
@@ -209,7 +205,6 @@ Window {
                             width: 38
                             height: 38
                             text: "⏭"
-                            flat: true
                             contentItem: Text {
                                 text: parent.text
                                 color: root.cTextMain
@@ -263,7 +258,6 @@ Window {
                     anchors.verticalCenter: parent.verticalCenter
                     height: 28
                     text: "Open Folder"
-                    flat: true
                     contentItem: Text {
                         text: parent.text
                         color: root.cTextMain
@@ -294,10 +288,11 @@ Window {
                     spacing: 6
 
                     delegate: Column {
-                        id: folderDelegate
+                        id: folderGroupItem
                         width: folderListView.width
                         spacing: 2
                         property bool isOpen: true
+                        property var folderData: modelData
 
                         Rectangle {
                             width: parent.width
@@ -313,49 +308,50 @@ Window {
 
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: folderDelegate.isOpen ? "▼" : "▶"
+                                    text: folderGroupItem.isOpen ? "▼" : "▶"
                                     color: root.cAccent
                                     font.pixelSize: 10
                                 }
 
                                 Text {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: modelData.folderName + " (" + modelData.tracks.length + ")"
+                                    text: folderGroupItem.folderData.folderName + " (" + folderGroupItem.folderData.tracks.length + ")"
                                     color: root.cTextMain
                                     font.pixelSize: 12
                                     font.bold: true
                                     elide: Text.ElideRight
-                                    width: folderDelegate.width - 45
+                                    width: folderGroupItem.width - 45
                                 }
                             }
 
                             MouseArea {
                                 anchors.fill: parent
-                                onClicked: folderDelegate.isOpen = !folderDelegate.isOpen
+                                onClicked: folderGroupItem.isOpen = !folderGroupItem.isOpen
                             }
                         }
 
                         Column {
                             width: parent.width
-                            visible: folderDelegate.isOpen
+                            visible: folderGroupItem.isOpen
                             spacing: 1
 
                             Repeater {
-                                model: modelData.tracks
+                                model: folderGroupItem.folderData.tracks
 
                                 delegate: Rectangle {
-                                    id: trackRow
+                                    id: trackItem
                                     width: parent.width
                                     height: 28
                                     radius: 3
-                                    property bool isSelected: library.currentTrackPath === modelData.fullPath
+                                    property var trackData: modelData
+                                    property bool isSelected: library.currentTrackPath === trackData.fullPath
                                     color: isSelected ? "#231f3d" : (trackArea.containsMouse ? "#121520" : "transparent")
 
                                     Rectangle {
                                         width: 2
                                         height: parent.height
                                         color: root.cAccent
-                                        visible: trackRow.isSelected
+                                        visible: trackItem.isSelected
                                     }
 
                                     Text {
@@ -364,8 +360,8 @@ Window {
                                         anchors.right: parent.right
                                         anchors.rightMargin: 8
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: modelData.name
-                                        color: trackRow.isSelected ? "#ffffff" : root.cTextDim
+                                        text: trackItem.trackData.name
+                                        color: trackItem.isSelected ? "#ffffff" : root.cTextDim
                                         font.pixelSize: 11
                                         elide: Text.ElideRight
                                     }
@@ -374,7 +370,7 @@ Window {
                                         id: trackArea
                                         anchors.fill: parent
                                         hoverEnabled: true
-                                        onClicked: library.setCurrentTrackPath(modelData.fullPath)
+                                        onClicked: library.setCurrentTrackPath(trackItem.trackData.fullPath)
                                     }
                                 }
                             }
