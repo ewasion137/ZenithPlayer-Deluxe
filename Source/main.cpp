@@ -4,6 +4,7 @@
 #include <QQuickStyle>
 
 #include "Player/library.hpp"
+#include "Audio/engine.hpp"
 
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
@@ -14,9 +15,11 @@ int main(int argc, char* argv[]) {
     QQuickStyle::setStyle("Basic");
 
     Player::Library library;
+    Audio::Engine audioEngine;
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("library", &library);
+    engine.rootContext()->setContextProperty("audioEngine", &audioEngine);
 
     const QUrl url(QStringLiteral("qrc:/Main.qml"));
 

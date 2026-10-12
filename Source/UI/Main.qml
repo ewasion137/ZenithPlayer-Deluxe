@@ -186,7 +186,7 @@ Window {
                         Button {
                             width: 48
                             height: 48
-                            text: "▶"
+                            text: audioEngine.isPlaying ? "❚❚" : "▶"
                             contentItem: Text {
                                 text: parent.text
                                 color: "#ffffff"
@@ -199,6 +199,7 @@ Window {
                                 radius: 24
                                 color: root.cAccent
                             }
+                            onClicked: audioEngine.togglePlayPause()
                         }
 
                         Button {
@@ -289,20 +290,19 @@ Window {
                 anchors.bottom: parent.bottom
                 anchors.margins: 10
                 clip: true
-                boundsBehavior: Flickable.StopAtBounds
+                model: library.folders
                 spacing: 6
                 property var collapsedFolders: ({})
 
                 ScrollBar.vertical: ScrollBar {
                     active: true
                     width: 6
+                    policy: ScrollBar.AsNeeded
                 }
-
-                model: library.folders
 
                 delegate: Column {
                     id: folderGroupItem
-                    width: folderListView.width - 8
+                    width: folderListView.width - (folderListView.ScrollBar.vertical.visible ? 10 : 0)
                     spacing: 2
                     property var folderData: modelData
                     property bool isOpen: !folderListView.collapsedFolders[folderData.fullPath]
@@ -394,12 +394,13 @@ Window {
                                     hoverEnabled: true
                                     onClicked: {
                                         library.setCurrentTrackPath(trackItem.trackData.fullPath)
-                                        player.playTrack(trackItem.trackData.fullPath)
+                                        audioEngine.play(trackItem.trackData.fullPath)
                                     }
                                 }
                             }
                         }
-                    }}
+                    }
+                }
                 }
             }
         }

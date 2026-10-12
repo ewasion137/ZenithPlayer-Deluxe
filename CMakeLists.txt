@@ -18,11 +18,14 @@ add_executable(ZenithPlayerDeluxe
     Source/Player/find.cpp
     Source/Player/library.hpp
     Source/Player/library.cpp
+    Source/Audio/engine.hpp
+    Source/Audio/engine.cpp
     Source/UI/qml.qrc
 )
 
 target_include_directories(ZenithPlayerDeluxe PRIVATE
     Source
+    Source/Audio
 )
 
 target_link_libraries(ZenithPlayerDeluxe PRIVATE
