@@ -83,4 +83,46 @@ void Library::scanPath(const QString& rawPath) {
     emit foldersChanged();
 }
 
+QString Library::getNextTrack() const {
+    if (m_folders.isEmpty() || m_currentTrackPath.isEmpty()) {
+        return {};
+    }
+
+    QList<QString> allPaths;
+    for (const auto& folderVal : m_folders) {
+        const auto folderMap = folderVal.toMap();
+        const auto tracks = folderMap["tracks"].toList();
+        for (const auto& trackVal : tracks) {
+            allPaths.append(trackVal.toMap()["fullPath"].toString());
+        }
+    }
+
+    const int idx = allPaths.indexOf(m_currentTrackPath);
+    if (idx != -1 && idx + 1 < allPaths.size()) {
+        return allPaths[idx + 1];
+    }
+    return {};
+}
+
+QString Library::getPreviousTrack() const {
+    if (m_folders.isEmpty() || m_currentTrackPath.isEmpty()) {
+        return {};
+    }
+
+    QList<QString> allPaths;
+    for (const auto& folderVal : m_folders) {
+        const auto folderMap = folderVal.toMap();
+        const auto tracks = folderMap["tracks"].toList();
+        for (const auto& trackVal : tracks) {
+            allPaths.append(trackVal.toMap()["fullPath"].toString());
+        }
+    }
+
+    const int idx = allPaths.indexOf(m_currentTrackPath);
+    if (idx > 0) {
+        return allPaths[idx - 1];
+    }
+    return {};
+}
+
 } // namespace Player

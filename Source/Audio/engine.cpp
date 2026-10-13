@@ -2,7 +2,8 @@
 #include "miniaudio.h"
 
 #include "engine.hpp"
-#include <QFileInfo>
+#include <algorithm>
+#include <cmath>
 
 namespace Audio {
 
@@ -21,11 +22,11 @@ Engine::Engine(QObject* parent)
     m_sound = new ma_sound();
 
     connect(&m_tickTimer, &QTimer::timeout, this, &Engine::onTick);
-    m_tickTimer.setInterval(40);
+    m_tickTimer.setInterval(30);
 }
 
 Engine::~Engine() {
-    unloadSound();
+    unloadSound(false);
     if (m_engine) {
         ma_engine_uninit(m_engine);
         delete m_engine;
@@ -54,6 +55,14 @@ float Engine::volume() const {
     return m_volume;
 }
 
+float Engine::speed() const {
+    return m_speed;
+}
+
+bool Engine::flStudioMode() const {
+    return m_flStudioMode;
+}
+
 void Engine::setVolume(float vol) {
     m_volume = std::clamp(vol, 0.0f, 2.0f);
     if (m_soundLoaded) {
@@ -62,18 +71,54 @@ void Engine::setVolume(float vol) {
     emit volumeChanged();
 }
 
-void Engine::unloadSound() {
+void Engine::setSpeed(float spd) {
+    m_speed = std::clamp(spd, 0.5f, 2.0f);
     if (m_soundLoaded) {
-        m_tickTimer.stop();
-        ma_sound_stop(m_sound);
-        ma_sound_uninit(m_sound);
-        m_soundLoaded = false;
-        m_isPlaying = false;
-        m_duration = 0.0;
-        emit stateChanged();
-        emit durationChanged();
-        emit positionChanged();
+        ma_sound_set_pitch(m_sound, m_speed);
     }
+    emit speedChanged();
+}
+
+void Engine::setFlStudioMode(bool enabled) {
+    if (m_flStudioMode != enabled) {
+        m_flStudioMode = enabled;
+        emit flStudioModeChanged();
+    }
+}
+
+QString Engine::formatTime(double seconds) const {
+    if (seconds < 0.0 || std::isnan(seconds)) {
+        seconds = 0.0;
+    }
+    const int totalSec = static_cast<int>(seconds);
+    const int m = totalSec / 60;
+    const int s = totalSec % 60;
+    return QString("%1:%2").arg(m, 2, 10, QChar('0')).arg(s, 2, 10, QChar('0'));
+}
+
+void Engine::unloadSound(bool fade) {
+    if (!m_soundLoaded) {
+        return;
+    }
+
+    m_tickTimer.stop();
+
+    if (fade && m_isPlaying) {
+        ma_sound_set_fade_in_milliseconds(m_sound, m_volume, 0.0f, 120);
+        ma_sleep(120);
+    }
+
+    ma_sound_stop(m_sound);
+    ma_sound_uninit(m_sound);
+
+    m_soundLoaded = false;
+    m_isPlaying = false;
+    m_duration = 0.0;
+    m_playbackStartSec = 0.0;
+
+    emit stateChanged();
+    emit durationChanged();
+    emit positionChanged();
 }
 
 void Engine::play(const QString& filePath) {
@@ -81,7 +126,7 @@ void Engine::play(const QString& filePath) {
         return;
     }
 
-    unloadSound();
+    unloadSound(true);
 
     ma_result res;
 #if defined(_WIN32)
@@ -110,10 +155,12 @@ void Engine::play(const QString& filePath) {
 
     m_soundLoaded = true;
     ma_sound_set_volume(m_sound, m_volume);
+    ma_sound_set_pitch(m_sound, m_speed);
 
     float len = 0.0f;
     ma_sound_get_length_in_seconds(m_sound, &len);
     m_duration = static_cast<double>(len);
+    m_playbackStartSec = 0.0;
 
     ma_sound_start(m_sound);
     m_isPlaying = true;
@@ -132,10 +179,24 @@ void Engine::togglePlayPause() {
     if (m_isPlaying) {
         pause();
     } else {
+        m_playbackStartSec = position();
         ma_sound_start(m_sound);
         m_isPlaying = true;
         m_tickTimer.start();
         emit stateChanged();
+    }
+}
+
+void Engine::stopWithReturn() {
+    if (!m_soundLoaded) {
+        return;
+    }
+
+    if (m_flStudioMode) {
+        seek(m_playbackStartSec);
+        pause();
+    } else {
+        togglePlayPause();
     }
 }
 
@@ -153,6 +214,7 @@ void Engine::stop() {
         ma_sound_stop(m_sound);
         ma_sound_seek_to_pcm_frame(m_sound, 0);
         m_isPlaying = false;
+        m_playbackStartSec = 0.0;
         m_tickTimer.stop();
         emit stateChanged();
         emit positionChanged();
@@ -163,7 +225,8 @@ void Engine::seek(double seconds) {
     if (!m_soundLoaded) {
         return;
     }
-    ma_uint64 frame = static_cast<ma_uint64>(seconds * ma_engine_get_sample_rate(m_engine));
+    const double target = std::clamp(seconds, 0.0, m_duration);
+    const auto frame = static_cast<ma_uint64>(target * ma_engine_get_sample_rate(m_engine));
     ma_sound_seek_to_pcm_frame(m_sound, frame);
     emit positionChanged();
 }

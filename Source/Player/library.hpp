@@ -22,11 +22,14 @@ public:
     Q_INVOKABLE void setCurrentTrackPath(const QString& path);
     Q_INVOKABLE void selectFolder();
     Q_INVOKABLE void scanPath(const QString& rawPath);
+    Q_INVOKABLE QString getNextTrack() const;
+    Q_INVOKABLE QString getPreviousTrack() const;
 
 signals:
     void foldersChanged();
     void currentTrackPathChanged();
     void currentTrackNameChanged();
+    void playRequested(const QString& path);
 
 private:
     QVariantList m_folders;

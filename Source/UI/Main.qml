@@ -21,6 +21,11 @@ Window {
     readonly property color cTextDim: "#64748b"
     readonly property color cBorder: "#1e2230"
 
+    Shortcut {
+        sequence: "Space"
+        onActivated: audioEngine.stopWithReturn()
+    }
+
     Rectangle {
         id: titleBar
         anchors.top: parent.top
@@ -156,67 +161,178 @@ Window {
 
                 Rectangle {
                     width: parent.width
-                    height: 80
+                    height: 140
                     radius: 12
                     color: root.cPanelBg
                     border.color: root.cBorder
 
-                    Row {
-                        anchors.centerIn: parent
-                        spacing: 16
+                    Column {
+                        anchors.fill: parent
+                        anchors.margins: 14
+                        spacing: 12
 
-                        Button {
-                            width: 38
-                            height: 38
-                            text: "⏮"
-                            contentItem: Text {
-                                text: parent.text
-                                color: root.cTextMain
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                                font.pixelSize: 14
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            spacing: 18
+
+                            Button {
+                                width: 38
+                                height: 38
+                                text: "⏮"
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: root.cTextMain
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 14
+                                }
+                                background: Rectangle {
+                                    radius: 19
+                                    color: parent.hovered ? "#23283b" : root.cSurface
+                                    border.color: root.cBorder
+                                }
+                                onClicked: {
+                                    if (audioEngine.position > 3.0) {
+                                        audioEngine.seek(0.0)
+                                    } else {
+                                        var prev = library.getPreviousTrack()
+                                        if (prev !== "") {
+                                            library.setCurrentTrackPath(prev)
+                                            audioEngine.play(prev)
+                                        }
+                                    }
+                                }
                             }
-                            background: Rectangle {
-                                radius: 19
-                                color: parent.hovered ? "#23283b" : root.cSurface
-                                border.color: root.cBorder
+
+                            Button {
+                                width: 48
+                                height: 48
+                                text: audioEngine.isPlaying ? "❚❚" : "▶"
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: "#ffffff"
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                }
+                                background: Rectangle {
+                                    radius: 24
+                                    color: root.cAccent
+                                }
+                                onClicked: audioEngine.togglePlayPause()
+                            }
+
+                            Button {
+                                width: 38
+                                height: 38
+                                text: "⏭"
+                                contentItem: Text {
+                                    text: parent.text
+                                    color: root.cTextMain
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                    font.pixelSize: 14
+                                }
+                                background: Rectangle {
+                                    radius: 19
+                                    color: parent.hovered ? "#23283b" : root.cSurface
+                                    border.color: root.cBorder
+                                }
+                                onClicked: {
+                                    var next = library.getNextTrack()
+                                    if (next !== "") {
+                                        library.setCurrentTrackPath(next)
+                                        audioEngine.play(next)
+                                    }
+                                }
                             }
                         }
 
-                        Button {
-                            width: 48
-                            height: 48
-                            text: audioEngine.isPlaying ? "❚❚" : "▶"
-                            contentItem: Text {
-                                text: parent.text
-                                color: "#ffffff"
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                                font.pixelSize: 16
-                                font.bold: true
+                        Row {
+                            width: parent.width
+                            spacing: 10
+
+                            Text {
+                                text: audioEngine.formatTime(audioEngine.position)
+                                color: root.cTextDim
+                                font.pixelSize: 11
+                                font.family: "monospace"
+                                anchors.verticalCenter: parent.verticalCenter
                             }
-                            background: Rectangle {
-                                radius: 24
-                                color: root.cAccent
+
+                            Slider {
+                                id: progressSlider
+                                width: parent.width - 90
+                                from: 0.0
+                                to: Math.max(0.1, audioEngine.duration)
+                                value: pressed ? value : audioEngine.position
+                                anchors.verticalCenter: parent.verticalCenter
+
+                                onMoved: audioEngine.seek(value)
                             }
-                            onClicked: audioEngine.togglePlayPause()
+
+                            Text {
+                                text: audioEngine.formatTime(audioEngine.duration)
+                                color: root.cTextDim
+                                font.pixelSize: 11
+                                font.family: "monospace"
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
                         }
 
-                        Button {
-                            width: 38
-                            height: 38
-                            text: "⏭"
-                            contentItem: Text {
-                                text: parent.text
-                                color: root.cTextMain
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                                font.pixelSize: 14
+                        Row {
+                            width: parent.width
+                            spacing: 24
+
+                            Row {
+                                spacing: 8
+                                Text {
+                                    text: "VOL"
+                                    color: root.cTextDim
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Slider {
+                                    width: 110
+                                    from: 0.0
+                                    to: 2.0
+                                    value: audioEngine.volume
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    onMoved: audioEngine.setVolume(value)
+                                }
+                                Text {
+                                    text: Math.round(audioEngine.volume * 100) + "%"
+                                    color: root.cTextDim
+                                    font.pixelSize: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
-                            background: Rectangle {
-                                radius: 19
-                                color: parent.hovered ? "#23283b" : root.cSurface
-                                border.color: root.cBorder
+
+                            Row {
+                                spacing: 8
+                                Text {
+                                    text: "SPD"
+                                    color: root.cTextDim
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Slider {
+                                    width: 110
+                                    from: 0.5
+                                    to: 2.0
+                                    value: audioEngine.speed
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    onMoved: audioEngine.setSpeed(value)
+                                }
+                                Text {
+                                    text: Math.round(audioEngine.speed * 100) + "%"
+                                    color: root.cTextDim
+                                    font.pixelSize: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
                             }
                         }
                     }
@@ -274,15 +390,7 @@ Window {
                 }
             }
 
-            ScrollView {
-                anchors.top: explorerHeader.bottom
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.margins: 10
-                clip: true
-
-                ListView {
+            ListView {
                 id: folderListView
                 anchors.top: explorerHeader.bottom
                 anchors.left: parent.left
@@ -400,7 +508,6 @@ Window {
                             }
                         }
                     }
-                }
                 }
             }
         }

@@ -17,6 +17,14 @@ int main(int argc, char* argv[]) {
     Player::Library library;
     Audio::Engine audioEngine;
 
+    QObject::connect(&audioEngine, &Audio::Engine::trackEnded, [&]() {
+        const QString next = library.getNextTrack();
+        if (!next.isEmpty()) {
+            library.setCurrentTrackPath(next);
+            audioEngine.play(next);
+        }
+    });
+
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty("library", &library);
     engine.rootContext()->setContextProperty("audioEngine", &audioEngine);
