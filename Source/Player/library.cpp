@@ -1,5 +1,6 @@
 #include "library.hpp"
 #include "find.hpp"
+#include "metadata.hpp"
 
 #include <QFileDialog>
 #include <QFileInfo>
@@ -12,15 +13,67 @@ Library::Library(QObject* parent)
     : QObject(parent) {}
 
 QVariantList Library::folders() const {
-    return m_folders;
+    if (m_searchQuery.trimmed().isEmpty()) {
+        return m_rawFolders;
+    }
+
+    QVariantList filtered;
+    for (const auto& fVal : m_rawFolders) {
+        const auto fMap = fVal.toMap();
+        const auto tracks = fMap["tracks"].toList();
+        QVariantList matchedTracks;
+
+        for (const auto& tVal : tracks) {
+            const auto tMap = tVal.toMap();
+            if (tMap["name"].toString().contains(m_searchQuery, Qt::CaseInsensitive)) {
+                matchedTracks.append(tMap);
+            }
+        }
+
+        if (!matchedTracks.isEmpty()) {
+            QVariantMap copy = fMap;
+            copy["tracks"] = matchedTracks;
+            filtered.append(copy);
+        }
+    }
+    return filtered;
 }
 
 QString Library::currentTrackPath() const {
     return m_currentTrackPath;
 }
 
-QString Library::currentTrackName() const {
-    return m_currentTrackName;
+QString Library::currentTitle() const {
+    return m_currentTitle;
+}
+
+QString Library::currentArtist() const {
+    return m_currentArtist;
+}
+
+QString Library::currentAlbum() const {
+    return m_currentAlbum;
+}
+
+QString Library::currentCoverUrl() const {
+    return m_currentCoverUrl;
+}
+
+QString Library::searchQuery() const {
+    return m_searchQuery;
+}
+
+QImage Library::getCoverImage(const QString& path) const {
+    Q_UNUSED(path);
+    return m_cachedCover;
+}
+
+void Library::setSearchQuery(const QString& query) {
+    if (m_searchQuery != query) {
+        m_searchQuery = query;
+        emit searchQueryChanged();
+        emit foldersChanged();
+    }
 }
 
 void Library::setCurrentTrackPath(const QString& path) {
@@ -29,10 +82,22 @@ void Library::setCurrentTrackPath(const QString& path) {
     }
 
     m_currentTrackPath = path;
-    m_currentTrackName = QFileInfo(path).completeBaseName();
+    updateMetadata(path);
 
     emit currentTrackPathChanged();
-    emit currentTrackNameChanged();
+}
+
+void Library::updateMetadata(const QString& path) {
+    const TrackMetadata meta = extractMetadata(path);
+    m_currentTitle = meta.title;
+    m_currentArtist = meta.artist;
+    m_currentAlbum = meta.album;
+    m_cachedCover = meta.cover;
+
+    static qint64 counter = 0;
+    m_currentCoverUrl = meta.cover.isNull() ? "" : QString("image://covers/%1").arg(++counter);
+
+    emit metadataChanged();
 }
 
 void Library::selectFolder() {
@@ -79,17 +144,18 @@ void Library::scanPath(const QString& rawPath) {
         folderList.append(folderMap);
     }
 
-    m_folders = folderList;
+    m_rawFolders = folderList;
     emit foldersChanged();
 }
 
 QString Library::getNextTrack() const {
-    if (m_folders.isEmpty() || m_currentTrackPath.isEmpty()) {
+    const auto list = folders();
+    if (list.isEmpty() || m_currentTrackPath.isEmpty()) {
         return {};
     }
 
     QList<QString> allPaths;
-    for (const auto& folderVal : m_folders) {
+    for (const auto& folderVal : list) {
         const auto folderMap = folderVal.toMap();
         const auto tracks = folderMap["tracks"].toList();
         for (const auto& trackVal : tracks) {
@@ -105,12 +171,13 @@ QString Library::getNextTrack() const {
 }
 
 QString Library::getPreviousTrack() const {
-    if (m_folders.isEmpty() || m_currentTrackPath.isEmpty()) {
+    const auto list = folders();
+    if (list.isEmpty() || m_currentTrackPath.isEmpty()) {
         return {};
     }
 
     QList<QString> allPaths;
-    for (const auto& folderVal : m_folders) {
+    for (const auto& folderVal : list) {
         const auto folderMap = folderVal.toMap();
         const auto tracks = folderMap["tracks"].toList();
         for (const auto& trackVal : tracks) {

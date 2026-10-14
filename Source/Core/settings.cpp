@@ -2,6 +2,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QStandardPaths>
@@ -10,12 +11,22 @@ namespace Core {
 
 Settings::Settings(QObject* parent)
     : QObject(parent) {
+    const QString path = settingsFilePath();
+    const QFileInfo info(path);
+    QDir().mkpath(info.dir().absolutePath());
+
+    if (!QFile::exists(path)) {
+        QFile file(path);
+        if (file.open(QIODevice::WriteOnly)) {
+            file.write("{}");
+        }
+    }
+
     load();
 }
 
 QString Settings::settingsFilePath() const {
     const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-    QDir().mkpath(appData);
     return appData + "/zenith-settings.json";
 }
 
@@ -37,6 +48,10 @@ void Settings::persist() {
 }
 
 QVariantMap Settings::getTrackSettings(const QString& path) {
+    if (path.isEmpty()) {
+        return {};
+    }
+
     if (m_data.contains(path)) {
         return m_data.value(path).toObject().toVariantMap();
     }
