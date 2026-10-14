@@ -3,6 +3,8 @@
 #include <QObject>
 #include <QString>
 #include <QTimer>
+#include <QVariantList>
+#include <vector>
 
 struct ma_engine;
 struct ma_sound;
@@ -17,6 +19,7 @@ class Engine : public QObject {
     Q_PROPERTY(float volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(float speed READ speed WRITE setSpeed NOTIFY speedChanged)
     Q_PROPERTY(bool flStudioMode READ flStudioMode WRITE setFlStudioMode NOTIFY flStudioModeChanged)
+    Q_PROPERTY(QVariantList eqGains READ eqGains NOTIFY eqGainsChanged)
 
 public:
     explicit Engine(QObject* parent = nullptr);
@@ -28,6 +31,7 @@ public:
     float volume() const;
     float speed() const;
     bool flStudioMode() const;
+    QVariantList eqGains() const;
 
     Q_INVOKABLE void play(const QString& filePath);
     Q_INVOKABLE void togglePlayPause();
@@ -38,6 +42,9 @@ public:
     Q_INVOKABLE void setVolume(float volume);
     Q_INVOKABLE void setSpeed(float speed);
     Q_INVOKABLE void setFlStudioMode(bool enabled);
+    Q_INVOKABLE void setEqGain(int index, float gainDb);
+    Q_INVOKABLE void setAllEqGains(const QVariantList& gains);
+    Q_INVOKABLE void resetEq();
     Q_INVOKABLE QString formatTime(double seconds) const;
 
 signals:
@@ -47,6 +54,7 @@ signals:
     void volumeChanged();
     void speedChanged();
     void flStudioModeChanged();
+    void eqGainsChanged();
     void trackEnded();
 
 private slots:
@@ -54,9 +62,12 @@ private slots:
 
 private:
     void unloadSound(bool fade = false);
+    void initEqNode();
 
     ma_engine* m_engine{nullptr};
     ma_sound* m_sound{nullptr};
+    void* m_eqNodeMemory{nullptr};
+
     bool m_soundLoaded{false};
     bool m_isPlaying{false};
     bool m_flStudioMode{true};
@@ -64,6 +75,7 @@ private:
     double m_playbackStartSec{0.0};
     float m_volume{1.0f};
     float m_speed{1.0f};
+    std::vector<float> m_eqGains;
     QTimer m_tickTimer;
 };
 

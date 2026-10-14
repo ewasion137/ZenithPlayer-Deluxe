@@ -7,8 +7,41 @@
 
 namespace Audio {
 
+namespace {
+
+constexpr double EQ_FREQUENCIES[7] = {60.0, 170.0, 350.0, 1000.0, 3500.0, 10000.0, 14000.0};
+constexpr double EQ_Q = 1.41;
+
+struct CustomEqNode {
+    ma_node_base baseNode;
+    ma_peak2 filters[7];
+};
+
+void eqNodeProcess(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut) {
+    auto* pEq = reinterpret_cast<CustomEqNode*>(pNode);
+    const ma_uint32 frameCount = *pFrameCountIn;
+
+    ma_copy_pcm_frames(ppFramesOut[0], ppFramesIn[0], frameCount, ma_format_f32, 2);
+
+    for (int i = 0; i < 7; ++i) {
+        ma_peak2_process_pcm_frames(&pEq->filters[i], ppFramesOut[0], ppFramesOut[0], frameCount);
+    }
+
+    *pFrameCountOut = frameCount;
+}
+
+static ma_node_vtable g_eqNodeVTable = {
+    eqNodeProcess,
+    nullptr,
+    1,
+    1,
+    0
+};
+
+} // namespace
+
 Engine::Engine(QObject* parent)
-    : QObject(parent) {
+    : QObject(parent), m_eqGains(7, 0.0f) {
     m_engine = new ma_engine();
     ma_engine_config config = ma_engine_config_init();
     ma_result result = ma_engine_init(&config, m_engine);
@@ -20,6 +53,7 @@ Engine::Engine(QObject* parent)
     }
 
     m_sound = new ma_sound();
+    initEqNode();
 
     connect(&m_tickTimer, &QTimer::timeout, this, &Engine::onTick);
     m_tickTimer.setInterval(30);
@@ -27,11 +61,55 @@ Engine::Engine(QObject* parent)
 
 Engine::~Engine() {
     unloadSound(false);
+
+    if (m_eqNodeMemory) {
+        auto* pEq = reinterpret_cast<CustomEqNode*>(m_eqNodeMemory);
+        for (int i = 0; i < 7; ++i) {
+            ma_peak2_uninit(&pEq->filters[i], nullptr);
+        }
+        ma_node_uninit(&pEq->baseNode, nullptr);
+        delete pEq;
+        m_eqNodeMemory = nullptr;
+    }
+
     if (m_engine) {
         ma_engine_uninit(m_engine);
         delete m_engine;
     }
     delete m_sound;
+}
+
+void Engine::initEqNode() {
+    if (!m_engine) {
+        return;
+    }
+
+    auto* pEq = new CustomEqNode();
+    m_eqNodeMemory = pEq;
+
+    ma_uint32 channels = 2;
+    ma_node_config baseConfig = ma_node_config_init();
+    baseConfig.vtable = &g_eqNodeVTable;
+    baseConfig.pInputChannels = &channels;
+    baseConfig.pOutputChannels = &channels;
+
+    ma_node_init(ma_engine_get_node_graph(m_engine), &baseConfig, nullptr, &pEq->baseNode);
+
+    const ma_uint32 sampleRate = ma_engine_get_sample_rate(m_engine);
+
+    for (int i = 0; i < 7; ++i) {
+        ma_peak2_config filterConfig = ma_peak2_config_init(
+            ma_format_f32,
+            channels,
+            sampleRate,
+            0.0,
+            EQ_Q,
+            EQ_FREQUENCIES[i]
+        );
+        ma_peak2_init(&filterConfig, nullptr, &pEq->filters[i]);
+    }
+
+    ma_node_attach_output_bus(&pEq->baseNode, 0, ma_engine_get_endpoint(m_engine), 0);
 }
 
 bool Engine::isPlaying() const {
@@ -63,6 +141,14 @@ bool Engine::flStudioMode() const {
     return m_flStudioMode;
 }
 
+QVariantList Engine::eqGains() const {
+    QVariantList list;
+    for (float g : m_eqGains) {
+        list.append(g);
+    }
+    return list;
+}
+
 void Engine::setVolume(float vol) {
     m_volume = std::clamp(vol, 0.0f, 2.0f);
     if (m_soundLoaded) {
@@ -83,6 +169,45 @@ void Engine::setFlStudioMode(bool enabled) {
     if (m_flStudioMode != enabled) {
         m_flStudioMode = enabled;
         emit flStudioModeChanged();
+    }
+}
+
+void Engine::setEqGain(int index, float gainDb) {
+    if (index < 0 || index >= 7 || !m_eqNodeMemory) {
+        return;
+    }
+
+    gainDb = std::clamp(gainDb, -12.0f, 12.0f);
+    m_eqGains[index] = gainDb;
+
+    auto* pEq = reinterpret_cast<CustomEqNode*>(m_eqNodeMemory);
+    const ma_uint32 sampleRate = ma_engine_get_sample_rate(m_engine);
+
+    ma_peak2_config filterConfig = ma_peak2_config_init(
+        ma_format_f32,
+        2,
+        sampleRate,
+        static_cast<double>(gainDb),
+        EQ_Q,
+        EQ_FREQUENCIES[index]
+    );
+
+    ma_peak2_reinit(&filterConfig, &pEq->filters[index]);
+    emit eqGainsChanged();
+}
+
+void Engine::setAllEqGains(const QVariantList& gains) {
+    if (gains.size() != 7) {
+        return;
+    }
+    for (int i = 0; i < 7; ++i) {
+        setEqGain(i, gains[i].toFloat());
+    }
+}
+
+void Engine::resetEq() {
+    for (int i = 0; i < 7; ++i) {
+        setEqGain(i, 0.0f);
     }
 }
 
@@ -156,6 +281,11 @@ void Engine::play(const QString& filePath) {
     m_soundLoaded = true;
     ma_sound_set_volume(m_sound, m_volume);
     ma_sound_set_pitch(m_sound, m_speed);
+
+    if (m_eqNodeMemory) {
+        auto* pEq = reinterpret_cast<CustomEqNode*>(m_eqNodeMemory);
+        ma_node_attach_output_bus(m_sound, 0, &pEq->baseNode, 0);
+    }
 
     float len = 0.0f;
     ma_sound_get_length_in_seconds(m_sound, &len);
