@@ -27,6 +27,13 @@ void eqNodeProcess(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCo
         ma_peak2_process_pcm_frames(&pEq->filters[i], ppFramesOut[0], ppFramesOut[0], frameCount);
     }
 
+    float* pOut = ppFramesOut[0];
+    const ma_uint32 sampleCount = frameCount * 2;
+    for (ma_uint32 s = 0; s < sampleCount; ++s) {
+        if (pOut[s] > 1.0f) pOut[s] = 1.0f;
+        else if (pOut[s] < -1.0f) pOut[s] = -1.0f;
+    }
+
     *pFrameCountOut = frameCount;
 }
 

@@ -36,6 +36,7 @@ public:
     Q_INVOKABLE void setSearchQuery(const QString& query);
     Q_INVOKABLE QString getNextTrack() const;
     Q_INVOKABLE QString getPreviousTrack() const;
+    Q_INVOKABLE void setWebMetadata(const QString& title, const QString& artist, const QString& coverUrl);
 
 signals:
     void foldersChanged();

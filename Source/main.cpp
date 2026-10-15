@@ -51,12 +51,10 @@ int main(int argc, char* argv[]) {
 
     QObject::connect(&streamManager, &Network::StreamManager::streamReady,
                      [&](const QString& filePath, const QString& title, const QString& artist, const QString& coverUrl) {
-        Q_UNUSED(artist);
-        Q_UNUSED(coverUrl);
         library.setCurrentTrackPath(filePath);
+        library.setWebMetadata(title, artist, coverUrl);
         audioEngine.play(filePath);
     });
-
     QQmlApplicationEngine engine;
     engine.addImageProvider("covers", new CoverProvider(&library));
 

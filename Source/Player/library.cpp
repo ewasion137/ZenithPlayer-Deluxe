@@ -82,9 +82,21 @@ void Library::setCurrentTrackPath(const QString& path) {
     }
 
     m_currentTrackPath = path;
-    updateMetadata(path);
+
+    if (!path.contains("WebStream")) {
+        updateMetadata(path);
+    }
 
     emit currentTrackPathChanged();
+}
+
+void Library::setWebMetadata(const QString& title, const QString& artist, const QString& coverUrl) {
+    m_currentTitle = title;
+    m_currentArtist = artist;
+    m_currentAlbum = "Online Stream";
+    m_currentCoverUrl = coverUrl;
+
+    emit metadataChanged();
 }
 
 void Library::updateMetadata(const QString& path) {

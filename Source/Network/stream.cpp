@@ -150,7 +150,7 @@ void StreamManager::processDownload(const QString& target, const QString& custom
     purgeCache();
     setStatus("Extracting stream metadata...", true);
 
-    const QString outputPath = cacheDirectory() + "/active_stream.%(ext)s";
+    const QString outputPath = cacheDirectory() + "/active_stream.mp3";
 
     QString query = target;
     if (!target.startsWith("http://") && !target.startsWith("https://")) {
@@ -159,7 +159,8 @@ void StreamManager::processDownload(const QString& target, const QString& custom
 
     QStringList args;
     args << query
-         << "-f" << "ba/b"
+         << "-x"
+         << "--audio-format" << "mp3"
          << "--no-playlist"
          << "--no-warnings"
          << "-o" << outputPath;
