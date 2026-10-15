@@ -185,6 +185,12 @@ Window {
             target: null
             onActiveChanged: if (active) root.startSystemMove()
         }
+        TapHandler {
+            onDoubleTapped: {
+                if (root.visibility === Window.Maximized) root.showNormal()
+                else root.showMaximized()
+            }
+        }
     }
 
     Item {
@@ -252,7 +258,7 @@ Window {
                 clip: true
                 model: library.folders
                 spacing: 4
-                property var collapsedFolders: ({})
+                property var openFolders: ({})
 
                 ScrollBar.vertical: ScrollBar {
                     active: true
@@ -265,7 +271,7 @@ Window {
                     width: folderListView.width - (folderListView.ScrollBar.vertical.visible ? 8 : 0)
                     spacing: 2
                     property var folderData: modelData
-                    property bool isOpen: library.searchQuery !== "" || !folderListView.collapsedFolders[folderData.fullPath]
+                    property bool isOpen: library.searchQuery !== "" || !!folderListView.openFolders[folderData.fullPath]
 
                     Rectangle {
                         width: parent.width
@@ -300,11 +306,11 @@ Window {
                         MouseArea {
                             anchors.fill: parent
                             onClicked: {
-                                var updated = Object.assign({}, folderListView.collapsedFolders)
+                                var updated = Object.assign({}, folderListView.openFolders)
                                 var key = folderGroupItem.folderData.fullPath
                                 if (updated[key]) delete updated[key]
                                 else updated[key] = true
-                                folderListView.collapsedFolders = updated
+                                folderListView.openFolders = updated
                             }
                         }
                     }
