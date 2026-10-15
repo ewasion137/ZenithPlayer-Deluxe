@@ -112,10 +112,18 @@ Window {
                 Text {
                     anchors.fill: parent
                     verticalAlignment: Text.AlignVCenter
-                    text: "Search tracks or artists..."
-                    color: root.cTextDim
+                    text: streamManager.isBusy ? streamManager.statusText : "Search library or paste YouTube/Spotify link..."
+                    color: streamManager.isBusy ? root.cAccent : root.cTextDim
                     font.pixelSize: 11
                     visible: parent.text === ""
+                }
+
+                onAccepted: {
+                    var query = text.trim()
+                    if (query.startsWith("http://") || query.startsWith("https://")) {
+                        streamManager.resolveAndDownload(query)
+                        text = ""
+                    }
                 }
 
                 onTextChanged: library.setSearchQuery(text)
@@ -227,27 +235,47 @@ Window {
                     font.letterSpacing: 1.5
                 }
 
-                Button {
+                Row {
                     anchors.right: parent.right
                     anchors.rightMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
-                    height: 26
-                    text: "+ Open Folder"
-                    contentItem: Text {
-                        text: parent.text
-                        color: root.cTextMain
-                        font.pixelSize: 10
-                        font.bold: true
+                    spacing: 6
+
+                    Button {
+                        height: 26
+                        text: "🔗 + URL"
+                        contentItem: Text {
+                            text: parent.text
+                            color: root.cAccent
+                            font.pixelSize: 10
+                            font.bold: true
+                        }
+                        background: Rectangle {
+                            radius: 4
+                            color: parent.hovered ? "#231f3d" : root.cSurface
+                            border.color: root.cAccent
+                        }
+                        onClicked: urlModal.visible = true
                     }
-                    background: Rectangle {
-                        radius: 4
-                        color: parent.hovered ? root.cAccent : root.cSurface
-                        border.color: root.cBorder
+
+                    Button {
+                        height: 26
+                        text: "+ Folder"
+                        contentItem: Text {
+                            text: parent.text
+                            color: root.cTextMain
+                            font.pixelSize: 10
+                            font.bold: true
+                        }
+                        background: Rectangle {
+                            radius: 4
+                            color: parent.hovered ? root.cAccent : root.cSurface
+                            border.color: root.cBorder
+                        }
+                        onClicked: library.selectFolder()
                     }
-                    onClicked: library.selectFolder()
                 }
             }
-
             ListView {
                 id: folderListView
                 anchors.top: explorerHeader.bottom
@@ -913,6 +941,158 @@ Window {
                     color: root.cTextDim
                     font.pixelSize: 10
                     anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+        }
+    }
+    Rectangle {
+        id: urlModal
+        anchors.fill: parent
+        color: "#b0000000"
+        visible: false
+        z: 9999
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: if (!streamManager.isBusy) urlModal.visible = false
+        }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: 440
+            height: 190
+            radius: 12
+            color: root.cPanelBg
+            border.color: root.cAccent
+            border.width: 1
+
+            MouseArea { anchors.fill: parent }
+
+            Column {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 12
+
+                Item {
+                    width: parent.width
+                    height: 24
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "PLAY FROM WEB / YOUTUBE / SPOTIFY"
+                        color: root.cTextMain
+                        font.pixelSize: 11
+                        font.bold: true
+                        font.letterSpacing: 1.0
+                    }
+
+                    Button {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 24
+                        height: 24
+                        text: "✕"
+                        contentItem: Text {
+                            text: parent.text
+                            color: root.cTextDim
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        background: Rectangle { color: parent.hovered ? "#ef4444" : "transparent"; radius: 12 }
+                        onClicked: urlModal.visible = false
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 36
+                    color: root.cSurface
+                    radius: 6
+                    border.color: root.cBorder
+
+                    TextInput {
+                        id: urlInputField
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: root.cTextMain
+                        font.pixelSize: 12
+                        selectByMouse: true
+
+                        Text {
+                            anchors.fill: parent
+                            verticalAlignment: Text.AlignVCenter
+                            text: "Paste YouTube / Spotify URL or song title..."
+                            color: root.cTextDim
+                            font.pixelSize: 11
+                            visible: parent.text === ""
+                        }
+
+                        onAccepted: downloadBtn.clicked()
+                    }
+                }
+
+                Row {
+                    width: parent.width
+                    height: 24
+                    spacing: 8
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Status: "
+                        color: root.cTextDim
+                        font.pixelSize: 11
+                    }
+
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: streamManager.statusText
+                        color: streamManager.isBusy ? root.cAccent : "#10b981"
+                        font.pixelSize: 11
+                        font.bold: true
+                        elide: Text.ElideRight
+                        width: parent.width - 60
+                    }
+                }
+
+                Row {
+                    anchors.right: parent.right
+                    spacing: 10
+
+                    Button {
+                        height: 30
+                        text: "Cancel"
+                        contentItem: Text { text: parent.text; color: root.cTextDim; font.pixelSize: 11 }
+                        background: Rectangle { radius: 4; color: root.cSurface; border.color: root.cBorder }
+                        onClicked: urlModal.visible = false
+                    }
+
+                    Button {
+                        id: downloadBtn
+                        height: 30
+                        width: 110
+                        text: streamManager.isBusy ? "Loading..." : "Load & Play"
+                        enabled: !streamManager.isBusy
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#ffffff"
+                            font.pixelSize: 11
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        background: Rectangle {
+                            radius: 4
+                            color: streamManager.isBusy ? "#4c3a7a" : root.cAccent
+                        }
+                        onClicked: {
+                            if (urlInputField.text.trim() !== "") {
+                                streamManager.resolveAndDownload(urlInputField.text.trim())
+                            }
+                        }
+                    }
                 }
             }
         }

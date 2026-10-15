@@ -7,6 +7,7 @@
 #include "Player/library.hpp"
 #include "Audio/engine.hpp"
 #include "Core/settings.hpp"
+#include "Network/stream.hpp"
 
 class CoverProvider : public QQuickImageProvider {
 public:
@@ -38,6 +39,7 @@ int main(int argc, char* argv[]) {
     Player::Library library;
     Audio::Engine audioEngine;
     Core::Settings settingsStore;
+    Network::StreamManager streamManager;
 
     QObject::connect(&audioEngine, &Audio::Engine::trackEnded, [&]() {
         const QString next = library.getNextTrack();
@@ -47,12 +49,21 @@ int main(int argc, char* argv[]) {
         }
     });
 
+    QObject::connect(&streamManager, &Network::StreamManager::streamReady,
+                     [&](const QString& filePath, const QString& title, const QString& artist, const QString& coverUrl) {
+        Q_UNUSED(artist);
+        Q_UNUSED(coverUrl);
+        library.setCurrentTrackPath(filePath);
+        audioEngine.play(filePath);
+    });
+
     QQmlApplicationEngine engine;
     engine.addImageProvider("covers", new CoverProvider(&library));
 
     engine.rootContext()->setContextProperty("library", &library);
     engine.rootContext()->setContextProperty("audioEngine", &audioEngine);
     engine.rootContext()->setContextProperty("settingsStore", &settingsStore);
+    engine.rootContext()->setContextProperty("streamManager", &streamManager);
 
     const QUrl url(QStringLiteral("qrc:/Main.qml"));
 

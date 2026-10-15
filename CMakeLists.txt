@@ -10,7 +10,7 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_AUTOUIC ON)
 
-find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickControls2)
+find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickControls2 Network)
 
 add_executable(ZenithPlayerDeluxe
     Source/main.cpp
@@ -24,6 +24,8 @@ add_executable(ZenithPlayerDeluxe
     Source/Audio/engine.cpp
     Source/Core/settings.hpp
     Source/Core/settings.cpp
+    Source/Network/stream.hpp
+    Source/Network/stream.cpp
     Source/UI/qml.qrc
 )
 
@@ -31,6 +33,7 @@ target_include_directories(ZenithPlayerDeluxe PRIVATE
     Source
     Source/Audio
     Source/Core
+    Source/Network
 )
 
 target_link_libraries(ZenithPlayerDeluxe PRIVATE
@@ -40,4 +43,5 @@ target_link_libraries(ZenithPlayerDeluxe PRIVATE
     Qt6::Qml
     Qt6::Quick
     Qt6::QuickControls2
+    Qt6::Network
 )
