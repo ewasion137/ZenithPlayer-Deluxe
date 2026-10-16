@@ -90,11 +90,18 @@ void Library::setCurrentTrackPath(const QString& path) {
     emit currentTrackPathChanged();
 }
 
-void Library::setWebMetadata(const QString& title, const QString& artist, const QString& coverUrl) {
+void Library::setWebMetadata(const QString& title, const QString& artist, const QString& coverPath) {
     m_currentTitle = title;
     m_currentArtist = artist;
     m_currentAlbum = "Online Stream";
-    m_currentCoverUrl = coverUrl;
+
+    if (!coverPath.isEmpty() && QFile::exists(coverPath)) {
+        m_cachedCover = QImage(coverPath);
+        m_currentCoverUrl = QUrl::fromLocalFile(coverPath).toString();
+    } else {
+        m_cachedCover = QImage();
+        m_currentCoverUrl = "";
+    }
 
     emit metadataChanged();
 }

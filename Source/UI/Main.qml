@@ -294,6 +294,99 @@ Window {
                     policy: ScrollBar.AsNeeded
                 }
 
+                header: Column {
+                    id: webHeaderCol
+                    width: folderListView.width - (folderListView.ScrollBar.vertical.visible ? 8 : 0)
+                    spacing: 2
+                    visible: settingsStore.webTracks.length > 0
+                    property bool isOpen: true
+
+                    Rectangle {
+                        width: parent.width
+                        height: 28
+                        radius: 4
+                        color: root.cSurface
+                        border.color: root.cAccent
+
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+                            spacing: 8
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: webHeaderCol.isOpen ? "▼" : "▶"
+                                color: root.cAccent
+                                font.pixelSize: 9
+                            }
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "🌐 Online Streams (" + settingsStore.webTracks.length + ")"
+                                color: root.cAccent
+                                font.pixelSize: 11
+                                font.bold: true
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            onClicked: webHeaderCol.isOpen = !webHeaderCol.isOpen
+                        }
+                    }
+
+                    Column {
+                        width: parent.width
+                        visible: webHeaderCol.isOpen
+                        spacing: 1
+
+                        Repeater {
+                            model: settingsStore.webTracks
+
+                            delegate: Rectangle {
+                                id: webTrackRow
+                                width: parent.width
+                                height: 26
+                                radius: 3
+                                property bool isSelected: library.currentTrackPath.indexOf(modelData.id) !== -1
+                                color: isSelected ? "#231e3d" : (webArea.containsMouse ? "#181a26" : "transparent")
+
+                                Rectangle {
+                                    width: 2
+                                    height: parent.height
+                                    color: root.cAccent
+                                    visible: webTrackRow.isSelected
+                                }
+
+                                Row {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 16
+                                    anchors.rightMargin: 8
+                                    spacing: 8
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: modelData.artist + " - " + modelData.name
+                                        color: webTrackRow.isSelected ? "#ffffff" : root.cTextDim
+                                        font.pixelSize: 11
+                                        elide: Text.ElideRight
+                                        width: parent.width - 24
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: webArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    onClicked: streamManager.resolveAndDownload(modelData.url)
+                                }
+                            }
+                        }
+                    }
+
+                    Item { width: parent.width; height: 8 }
+                }
+
                 delegate: Column {
                     id: folderGroupItem
                     width: folderListView.width - (folderListView.ScrollBar.vertical.visible ? 8 : 0)

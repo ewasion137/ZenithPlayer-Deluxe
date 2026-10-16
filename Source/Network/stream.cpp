@@ -12,16 +12,13 @@
 namespace Network {
 
 StreamManager::StreamManager(QObject* parent)
-    : QObject(parent) {
-    purgeCache();
-}
+    : QObject(parent) {}
 
 StreamManager::~StreamManager() {
     if (m_process.state() == QProcess::Running) {
         m_process.kill();
         m_process.waitForFinished(1000);
     }
-    purgeCache();
 }
 
 bool StreamManager::isBusy() const {
@@ -96,7 +93,7 @@ void StreamManager::fetchSpotifyMetadata(const QString& spotifyUrl) {
 
     QNetworkReply* reply = m_netManager.get(req);
 
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, spotifyUrl]() {
         reply->deleteLater();
         if (reply->error() != QNetworkReply::NoError) {
             setStatus("Spotify track resolution failed", false);
@@ -120,7 +117,7 @@ void StreamManager::processDownload(const QString& target, const QString& custom
     const QString ytDlp = ensureYtDlpBinary();
 
     if (ytDlp.isEmpty()) {
-        setStatus("Downloading official yt-dlp engine...", true);
+        setStatus("Downloading official yt-dlp binary...", true);
         const QUrl downloadUrl("https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe");
         QNetworkRequest req(downloadUrl);
         req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
@@ -129,7 +126,7 @@ void StreamManager::processDownload(const QString& target, const QString& custom
         connect(reply, &QNetworkReply::finished, this, [this, reply, target, customTitle, customArtist, customCover]() {
             reply->deleteLater();
             if (reply->error() != QNetworkReply::NoError) {
-                setStatus("Failed to download yt-dlp binary", false);
+                setStatus("Failed to download yt-dlp", false);
                 emit streamError("yt-dlp download failed");
                 return;
             }
@@ -147,51 +144,136 @@ void StreamManager::processDownload(const QString& target, const QString& custom
         return;
     }
 
-    purgeCache();
-    setStatus("Extracting stream metadata...", true);
-
-    const QString outputPath = cacheDirectory() + "/active_stream.mp3";
+    setStatus("Fetching video info...", true);
 
     QString query = target;
     if (!target.startsWith("http://") && !target.startsWith("https://")) {
         query = QString("ytsearch1:%1").arg(target);
     }
 
-    QStringList args;
-    args << query
-         << "-x"
-         << "--audio-format" << "mp3"
-         << "--no-playlist"
-         << "--no-warnings"
-         << "-o" << outputPath;
+    auto* metaProc = new QProcess(this);
+    QStringList metaArgs;
+    metaArgs << query << "--dump-json" << "--no-warnings" << "--no-playlist";
 
-    m_process.disconnect();
+    connect(metaProc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [this, metaProc, target, customTitle, customArtist, customCover, ytDlp, query](int exitCode, QProcess::ExitStatus) {
+        metaProc->deleteLater();
 
-    connect(&m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this, customTitle, customArtist, customCover](int exitCode, QProcess::ExitStatus exitStatus) {
-        if (exitStatus == QProcess::CrashExit || exitCode != 0) {
-            const QString err = QString::fromUtf8(m_process.readAllStandardError());
-            setStatus(err.isEmpty() ? "Stream download failed" : err.left(100), false);
-            emit streamError("Download process failed");
+        QString metaTitle = customTitle;
+        QString metaArtist = customArtist;
+        QString metaCover = customCover;
+        QString metaId = "";
+
+        if (exitCode == 0) {
+            const QByteArray data = metaProc->readAllStandardOutput();
+            const auto doc = QJsonDocument::fromJson(data);
+            if (doc.isObject()) {
+                const auto obj = doc.object();
+                if (metaTitle.isEmpty()) {
+                    metaTitle = obj.value("title").toString();
+                }
+                if (metaArtist.isEmpty()) {
+                    metaArtist = obj.value("uploader").toString();
+                    if (metaArtist.isEmpty()) metaArtist = obj.value("channel").toString();
+                }
+                if (metaCover.isEmpty()) {
+                    metaCover = obj.value("thumbnail").toString();
+                }
+                metaId = obj.value("id").toString();
+            }
+        }
+
+        if (metaTitle.isEmpty()) metaTitle = "Online Stream";
+        if (metaArtist.isEmpty()) metaArtist = "YouTube";
+        if (metaId.isEmpty()) metaId = QString::number(qHash(target));
+
+        const QString outputPath = cacheDirectory() + "/" + metaId + ".mp3";
+
+        if (QFile::exists(outputPath)) {
+            setStatus("Ready", false);
+            downloadCoverAndFinish(metaCover, outputPath, metaTitle, metaArtist, target, metaId);
             return;
         }
 
-        QDir dir(cacheDirectory());
-        const QStringList files = dir.entryList(QDir::Files);
+        setStatus("Downloading audio stream...", true);
 
-        if (!files.isEmpty()) {
-            const QString fullPath = dir.absoluteFilePath(files.first());
-            setStatus("Stream ready", false);
-            const QString finalTitle = customTitle.isEmpty() ? "Online Stream" : customTitle;
-            const QString finalArtist = customArtist.isEmpty() ? "YouTube" : customArtist;
-            emit streamReady(fullPath, finalTitle, finalArtist, customCover);
-        } else {
-            setStatus("Stream file not found", false);
-            emit streamError("Output file missing");
+        QStringList dlArgs;
+        dlArgs << query
+               << "-x"
+               << "--audio-format" << "mp3"
+               << "--no-playlist"
+               << "--no-warnings"
+               << "-o" << outputPath;
+
+        if (metaCover.isEmpty() && !metaId.isEmpty()) {
+            metaCover = QString("https://i.ytimg.com/vi/%1/hqdefault.jpg").arg(metaId);
+        } else if (metaCover.contains("vi_webp")) {
+            metaCover.replace("vi_webp", "vi");
+            metaCover.replace(".webp", ".jpg");
         }
+
+        m_process.disconnect();
+
+        connect(&m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, outputPath, target, metaTitle, metaArtist, metaCover, metaId](int dlExitCode, QProcess::ExitStatus dlExitStatus) {
+            if (dlExitStatus == QProcess::CrashExit || dlExitCode != 0) {
+                const QString err = QString::fromUtf8(m_process.readAllStandardError());
+                setStatus(err.isEmpty() ? "Download failed" : err.left(100), false);
+                emit streamError("yt-dlp download failed");
+                return;
+            }
+
+            if (QFile::exists(outputPath)) {
+                setStatus("Ready", false);
+                downloadCoverAndFinish(metaCover, outputPath, metaTitle, metaArtist, target, metaId);
+            } else {
+                setStatus("Output file missing", false);
+                emit streamError("Missing audio file");
+            }
+        });
+
+        m_process.start(ytDlp, dlArgs);
     });
 
-    m_process.start(ytDlp, args);
+    metaProc->start(ytDlp, metaArgs);
+}
+
+void StreamManager::downloadCoverAndFinish(const QString& coverUrl, const QString& audioPath, const QString& title, const QString& artist, const QString& originalUrl, const QString& trackId) {
+    QString targetCoverUrl = coverUrl;
+
+    if (!trackId.isEmpty()) {
+        targetCoverUrl = QString("https://i.ytimg.com/vi/%1/hqdefault.jpg").arg(trackId);
+    } else if (targetCoverUrl.contains("vi_webp")) {
+        targetCoverUrl.replace("vi_webp", "vi");
+        targetCoverUrl.replace(".webp", ".jpg");
+    }
+
+    if (targetCoverUrl.isEmpty()) {
+        emit streamReady(audioPath, title, artist, "", originalUrl);
+        return;
+    }
+
+    const QString coverPath = cacheDirectory() + "/" + trackId + ".jpg";
+    if (QFile::exists(coverPath)) {
+        emit streamReady(audioPath, title, artist, coverPath, originalUrl);
+        return;
+    }
+
+    QNetworkRequest req{QUrl(targetCoverUrl)};
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+
+    QNetworkReply* reply = m_netManager.get(req);
+    connect(reply, &QNetworkReply::finished, this, [this, reply, coverPath, audioPath, title, artist, originalUrl]() {
+        reply->deleteLater();
+        if (reply->error() == QNetworkReply::NoError) {
+            QFile file(coverPath);
+            if (file.open(QIODevice::WriteOnly)) {
+                file.write(reply->readAll());
+                file.close();
+            }
+        }
+        emit streamReady(audioPath, title, artist, coverPath, originalUrl);
+    });
 }
 
 } // namespace Network

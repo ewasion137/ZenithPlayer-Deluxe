@@ -4,7 +4,6 @@
 #include <QObject>
 #include <QProcess>
 #include <QString>
-#include <QVariantMap>
 
 namespace Network {
 
@@ -26,7 +25,7 @@ public:
 signals:
     void busyChanged();
     void statusTextChanged();
-    void streamReady(const QString& filePath, const QString& title, const QString& artist, const QString& coverUrl);
+    void streamReady(const QString& filePath, const QString& title, const QString& artist, const QString& coverPath, const QString& originalUrl);
     void streamError(const QString& message);
 
 private:
@@ -34,6 +33,7 @@ private:
     QString ensureYtDlpBinary();
     void processDownload(const QString& targetUrl, const QString& customTitle = "", const QString& customArtist = "", const QString& customCover = "");
     void fetchSpotifyMetadata(const QString& url);
+    void downloadCoverAndFinish(const QString& coverUrl, const QString& audioPath, const QString& title, const QString& artist, const QString& originalUrl, const QString& trackId);
     QString cacheDirectory() const;
 
     bool m_isBusy{false};

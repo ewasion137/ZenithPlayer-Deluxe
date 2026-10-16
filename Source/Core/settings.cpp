@@ -5,6 +5,7 @@
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
 #include <QStandardPaths>
 
 namespace Core {
@@ -22,12 +23,26 @@ Settings::Settings(QObject* parent)
         }
     }
 
+    const QString webPath = webTracksFilePath();
+    if (!QFile::exists(webPath)) {
+        QFile file(webPath);
+        if (file.open(QIODevice::WriteOnly)) {
+            file.write("[]");
+        }
+    }
+
     load();
+    loadWebTracks();
 }
 
 QString Settings::settingsFilePath() const {
     const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     return appData + "/zenith-settings.json";
+}
+
+QString Settings::webTracksFilePath() const {
+    const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    return appData + "/zenith-web-tracks.json";
 }
 
 void Settings::load() {
@@ -47,11 +62,29 @@ void Settings::persist() {
     }
 }
 
-QVariantMap Settings::getTrackSettings(const QString& path) {
-    if (path.isEmpty()) {
-        return {};
+void Settings::loadWebTracks() {
+    QFile file(webTracksFilePath());
+    if (file.open(QIODevice::ReadOnly)) {
+        const QJsonDocument doc = QJsonDocument::fromJson(file.readAll());
+        if (doc.isArray()) {
+            m_webTracks = doc.array();
+        }
     }
+}
 
+void Settings::persistWebTracks() {
+    QFile file(webTracksFilePath());
+    if (file.open(QIODevice::WriteOnly)) {
+        file.write(QJsonDocument(m_webTracks).toJson(QJsonDocument::Indented));
+    }
+}
+
+QVariantList Settings::webTracks() const {
+    return m_webTracks.toVariantList();
+}
+
+QVariantMap Settings::getTrackSettings(const QString& path) {
+    if (path.isEmpty()) return {};
     if (m_data.contains(path)) {
         return m_data.value(path).toObject().toVariantMap();
     }
@@ -59,9 +92,7 @@ QVariantMap Settings::getTrackSettings(const QString& path) {
 }
 
 void Settings::saveTrackSettings(const QString& path, float volume, float speed, const QVariantList& eq) {
-    if (path.isEmpty()) {
-        return;
-    }
+    if (path.isEmpty()) return;
 
     QJsonObject trackObj;
     trackObj["volume"] = volume;
@@ -79,12 +110,40 @@ void Settings::saveTrackSettings(const QString& path, float volume, float speed,
 }
 
 void Settings::resetTrackSettings(const QString& path) {
-    if (path.isEmpty()) {
-        return;
-    }
-
+    if (path.isEmpty()) return;
     m_data.remove(path);
     persist();
+}
+
+void Settings::addWebTrack(const QString& id, const QString& url, const QString& name, const QString& artist, const QString& picture) {
+    for (int i = 0; i < m_webTracks.size(); ++i) {
+        if (m_webTracks[i].toObject()["url"].toString() == url) {
+            m_webTracks.removeAt(i);
+            break;
+        }
+    }
+
+    QJsonObject obj;
+    obj["id"] = id;
+    obj["url"] = url;
+    obj["name"] = name;
+    obj["artist"] = artist;
+    obj["picture"] = picture;
+
+    m_webTracks.prepend(obj);
+    persistWebTracks();
+    emit webTracksChanged();
+}
+
+void Settings::removeWebTrack(const QString& url) {
+    for (int i = 0; i < m_webTracks.size(); ++i) {
+        if (m_webTracks[i].toObject()["url"].toString() == url) {
+            m_webTracks.removeAt(i);
+            persistWebTracks();
+            emit webTracksChanged();
+            return;
+        }
+    }
 }
 
 } // namespace Core

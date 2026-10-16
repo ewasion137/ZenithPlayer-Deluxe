@@ -45,3 +45,16 @@ target_link_libraries(ZenithPlayerDeluxe PRIVATE
     Qt6::QuickControls2
     Qt6::Network
 )
+
+if(WIN32)
+    get_target_property(QT_QMAKE_EXE Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(QT_BIN_DIR "${QT_QMAKE_EXE}" DIRECTORY)
+    set(QT_PLUGINS_DIR "${QT_BIN_DIR}/../plugins")
+
+    add_custom_command(TARGET ZenithPlayerDeluxe POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+                "${QT_PLUGINS_DIR}/imageformats"
+                "$<TARGET_FILE_DIR:ZenithPlayerDeluxe>/imageformats"
+        COMMENT "Copying imageformat plugins..."
+    )
+endif()

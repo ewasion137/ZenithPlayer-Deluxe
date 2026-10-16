@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QLibraryInfo>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickImageProvider>
@@ -17,8 +18,10 @@ public:
     QImage requestImage(const QString& id, QSize* size, const QSize& requestedSize) override {
         Q_UNUSED(id);
         QImage img = m_library->getCoverImage(id);
-        if (size) *size = img.size();
-        if (requestedSize.isValid() && !img.isNull()) {
+        if (size) {
+            *size = img.size();
+        }
+        if (requestedSize.width() > 0 && requestedSize.height() > 0 && !img.isNull()) {
             return img.scaled(requestedSize, Qt::KeepAspectRatio, Qt::SmoothTransformation);
         }
         return img;
@@ -27,9 +30,10 @@ public:
 private:
     Player::Library* m_library;
 };
-
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
+
+    QCoreApplication::addLibraryPath(QLibraryInfo::path(QLibraryInfo::PluginsPath));
 
     app.setOrganizationName("ZenithCollective");
     app.setApplicationName("ZenithPlayerDeluxe");
@@ -50,11 +54,13 @@ int main(int argc, char* argv[]) {
     });
 
     QObject::connect(&streamManager, &Network::StreamManager::streamReady,
-                     [&](const QString& filePath, const QString& title, const QString& artist, const QString& coverUrl) {
+                     [&](const QString& filePath, const QString& title, const QString& artist, const QString& coverPath, const QString& originalUrl) {
+        settingsStore.addWebTrack(filePath, originalUrl, title, artist, coverPath);
         library.setCurrentTrackPath(filePath);
-        library.setWebMetadata(title, artist, coverUrl);
+        library.setWebMetadata(title, artist, coverPath);
         audioEngine.play(filePath);
     });
+
     QQmlApplicationEngine engine;
     engine.addImageProvider("covers", new CoverProvider(&library));
 
