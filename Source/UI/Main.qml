@@ -4,9 +4,9 @@ import QtQuick.Controls
 
 Window {
     id: root
-    width: 1150
+    width: 1180
     height: 760
-    minimumWidth: 900
+    minimumWidth: 920
     minimumHeight: 620
     visible: true
     title: "Zenith Player Deluxe"
@@ -23,7 +23,7 @@ Window {
     readonly property color cBorder: "#1e2235"
 
     readonly property var eqLabels: ["60", "170", "350", "1k", "3.5k", "10k", "14k"]
-    property string lastTrackPath: ""
+    property real sidebarWidth: 320
 
     function saveCurrentTrack() {
         if (library.currentTrackPath !== "") {
@@ -149,6 +149,7 @@ Window {
                 background: Rectangle { color: parent.hovered ? "#1f2438" : "transparent" }
                 onClicked: root.showMinimized()
             }
+
             Button {
                 width: 44
                 height: parent.height
@@ -193,6 +194,7 @@ Window {
             target: null
             onActiveChanged: if (active) root.startSystemMove()
         }
+
         TapHandler {
             onDoubleTapped: {
                 if (root.visibility === Window.Maximized) root.showNormal()
@@ -213,7 +215,7 @@ Window {
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             anchors.left: parent.left
-            width: 320
+            width: root.sidebarWidth
             color: root.cPanelBg
             border.color: root.cBorder
 
@@ -276,6 +278,7 @@ Window {
                     }
                 }
             }
+
             ListView {
                 id: folderListView
                 anchors.top: explorerHeader.bottom
@@ -360,9 +363,18 @@ Window {
 
                                 Row {
                                     anchors.fill: parent
-                                    anchors.leftMargin: 16
+                                    anchors.leftMargin: 12
                                     anchors.rightMargin: 8
                                     spacing: 8
+
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "#" + (settingsStore.webTracks.length - index)
+                                        color: root.cAccent
+                                        font.pixelSize: 9
+                                        font.bold: true
+                                        width: 20
+                                    }
 
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
@@ -370,7 +382,7 @@ Window {
                                         color: webTrackRow.isSelected ? "#ffffff" : root.cTextDim
                                         font.pixelSize: 11
                                         elide: Text.ElideRight
-                                        width: parent.width - 24
+                                        width: parent.width - 44
                                     }
                                 }
 
@@ -488,11 +500,36 @@ Window {
             }
         }
 
+        Rectangle {
+            id: sidebarSplitter
+            anchors.left: leftExplorer.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 4
+            color: splitterArea.containsMouse || splitterArea.drag.active ? root.cAccent : "transparent"
+
+            MouseArea {
+                id: splitterArea
+                anchors.fill: parent
+                cursorShape: Qt.SizeHorCursor
+                hoverEnabled: true
+                drag.target: parent
+                drag.axis: Drag.XAxis
+                drag.minimumX: 220
+                drag.maximumX: 500
+                onPositionChanged: {
+                    if (drag.active) {
+                        root.sidebarWidth = Math.max(220, Math.min(500, sidebarSplitter.x))
+                    }
+                }
+            }
+        }
+
         Item {
             id: mainStage
             anchors.top: parent.top
             anchors.bottom: parent.bottom
-            anchors.left: leftExplorer.right
+            anchors.left: sidebarSplitter.right
             anchors.right: parent.right
             anchors.margins: 20
 
@@ -672,11 +709,11 @@ Window {
                                         background: Rectangle {
                                             x: eqSlider.leftPadding + eqSlider.availableWidth / 2 - width / 2
                                             y: eqSlider.topPadding
-                                            implicitWidth: 4
+                                            implicitWidth: 6
                                             implicitHeight: 96
                                             width: implicitWidth
                                             height: eqSlider.availableHeight
-                                            radius: 2
+                                            radius: 3
                                             color: "#181a26"
 
                                             Rectangle {
@@ -685,19 +722,22 @@ Window {
                                                 y: eqSlider.position >= 0.5 ? (1.0 - eqSlider.position) * parent.height : parent.height / 2
                                                 height: Math.abs(eqSlider.position - 0.5) * parent.height
                                                 color: root.cAccent
-                                                radius: 2
+                                                radius: 3
                                             }
                                         }
 
                                         handle: Rectangle {
                                             x: eqSlider.leftPadding + eqSlider.availableWidth / 2 - width / 2
                                             y: eqSlider.topPadding + (1.0 - eqSlider.position) * (eqSlider.availableHeight - height)
-                                            implicitWidth: 16
-                                            implicitHeight: 8
-                                            radius: 2
+                                            implicitWidth: 18
+                                            implicitHeight: 10
+                                            radius: 3
                                             color: eqSlider.pressed ? "#ffffff" : root.cAccent
+                                            border.color: "#ffffff"
+                                            border.width: 1
                                         }
                                     }
+
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: root.eqLabels[index]
@@ -780,11 +820,11 @@ Window {
         Column {
             anchors.centerIn: parent
             width: 480
-            spacing: 4
+            spacing: 6
 
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
-                spacing: 14
+                spacing: 16
 
                 Button {
                     width: 32
@@ -814,23 +854,60 @@ Window {
                     }
                 }
 
-                Button {
-                    width: 36
-                    height: 36
-                    text: audioEngine.isPlaying ? "❚❚" : "▶"
-                    contentItem: Text {
-                        text: parent.text
-                        color: "#ffffff"
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        font.pixelSize: 14
-                        font.bold: true
+                Rectangle {
+                    id: playPauseBtn
+                    width: 38
+                    height: 38
+                    radius: 19
+                    color: root.cAccent
+
+                    Item {
+                        anchors.centerIn: parent
+                        width: 14
+                        height: 14
+
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: 4
+                            visible: audioEngine.isPlaying
+
+                            Rectangle {
+                                width: 3.5
+                                height: 13
+                                radius: 1
+                                color: "#ffffff"
+                            }
+                            Rectangle {
+                                width: 3.5
+                                height: 13
+                                radius: 1
+                                color: "#ffffff"
+                            }
+                        }
+
+                        Canvas {
+                            anchors.fill: parent
+                            visible: !audioEngine.isPlaying
+                            onPaint: {
+                                var ctx = getContext("2d")
+                                ctx.reset()
+                                ctx.fillStyle = "#ffffff"
+                                ctx.beginPath()
+                                ctx.moveTo(2, 1)
+                                ctx.lineTo(13, 7)
+                                ctx.lineTo(2, 13)
+                                ctx.closePath()
+                                ctx.fill()
+                            }
+                        }
                     }
-                    background: Rectangle {
-                        radius: 18
-                        color: root.cAccent
+
+                    MouseArea {
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: audioEngine.togglePlayPause()
                     }
-                    onClicked: audioEngine.togglePlayPause()
                 }
 
                 Button {
@@ -883,22 +960,22 @@ Window {
                         x: progressSlider.leftPadding
                         y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
                         width: progressSlider.availableWidth
-                        height: 4
-                        radius: 2
+                        height: 5
+                        radius: 2.5
                         color: "#181a26"
 
                         Rectangle {
                             width: progressSlider.visualPosition * parent.width
                             height: parent.height
                             color: root.cAccent
-                            radius: 2
+                            radius: 2.5
                         }
                     }
 
                     handle: Rectangle {
                         x: progressSlider.leftPadding + progressSlider.visualPosition * (progressSlider.availableWidth - width)
                         y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
-                        width: progressSlider.hovered || progressSlider.pressed ? 10 : 0
+                        width: progressSlider.hovered || progressSlider.pressed ? 12 : 6
                         height: width
                         radius: width / 2
                         color: "#ffffff"
@@ -919,22 +996,25 @@ Window {
             anchors.right: parent.right
             anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter
-            spacing: 16
+            spacing: 20
 
             Row {
-                spacing: 6
+                spacing: 8
+
                 Text {
                     text: "VOL"
                     color: root.cTextDim
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                     font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                 }
+
                 Slider {
                     id: volSlider
-                    width: 70
+                    width: 160
                     from: 0.0
                     to: 2.0
+                    stepSize: 0.01
 
                     Binding {
                         target: volSlider
@@ -953,43 +1033,77 @@ Window {
                         x: volSlider.leftPadding
                         y: volSlider.topPadding + volSlider.availableHeight / 2 - height / 2
                         width: volSlider.availableWidth
-                        height: 3
-                        radius: 1.5
+                        height: 5
+                        radius: 2.5
                         color: "#181a26"
 
                         Rectangle {
                             width: volSlider.visualPosition * parent.width
                             height: parent.height
                             color: root.cTextMain
-                            radius: 1.5
+                            radius: 2.5
                         }
                     }
 
                     handle: Rectangle {
                         x: volSlider.leftPadding + volSlider.visualPosition * (volSlider.availableWidth - width)
                         y: volSlider.topPadding + volSlider.availableHeight / 2 - height / 2
-                        width: 8
-                        height: 8
-                        radius: 4
+                        width: 14
+                        height: 14
+                        radius: 7
                         color: "#ffffff"
+                    }
+                }
+
+                Rectangle {
+                    width: 44
+                    height: 22
+                    color: root.cSurface
+                    radius: 3
+                    border.color: volInput.activeFocus ? root.cAccent : root.cBorder
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    TextInput {
+                        id: volInput
+                        anchors.fill: parent
+                        horizontalAlignment: TextInput.AlignHCenter
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: root.cTextMain
+                        font.pixelSize: 10
+                        font.bold: true
+                        selectByMouse: true
+                        text: activeFocus ? text : Math.round(audioEngine.volume * 100) + "%"
+
+                        onAccepted: {
+                            var raw = parseInt(text.replace("%", "").trim())
+                            if (!isNaN(raw)) {
+                                var clamped = Math.max(0, Math.min(200, raw))
+                                audioEngine.setVolume(clamped / 100.0)
+                                root.saveCurrentTrack()
+                            }
+                            focus = false
+                        }
                     }
                 }
             }
 
             Row {
-                spacing: 6
+                spacing: 8
+
                 Text {
                     text: "SPD"
                     color: root.cTextDim
-                    font.pixelSize: 9
+                    font.pixelSize: 10
                     font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
                 }
+
                 Slider {
                     id: spdSlider
-                    width: 70
+                    width: 160
                     from: 0.5
                     to: 2.0
+                    stepSize: 0.01
 
                     Binding {
                         target: spdSlider
@@ -1008,36 +1122,62 @@ Window {
                         x: spdSlider.leftPadding
                         y: spdSlider.topPadding + spdSlider.availableHeight / 2 - height / 2
                         width: spdSlider.availableWidth
-                        height: 3
-                        radius: 1.5
+                        height: 5
+                        radius: 2.5
                         color: "#181a26"
 
                         Rectangle {
                             width: spdSlider.visualPosition * parent.width
                             height: parent.height
                             color: root.cAccent
-                            radius: 1.5
+                            radius: 2.5
                         }
                     }
 
                     handle: Rectangle {
                         x: spdSlider.leftPadding + spdSlider.visualPosition * (spdSlider.availableWidth - width)
                         y: spdSlider.topPadding + spdSlider.availableHeight / 2 - height / 2
-                        width: 8
-                        height: 8
-                        radius: 4
+                        width: 14
+                        height: 14
+                        radius: 7
                         color: "#ffffff"
                     }
                 }
-                Text {
-                    text: Math.round(audioEngine.speed * 100) + "%"
-                    color: root.cTextDim
-                    font.pixelSize: 10
+
+                Rectangle {
+                    width: 44
+                    height: 22
+                    color: root.cSurface
+                    radius: 3
+                    border.color: spdInput.activeFocus ? root.cAccent : root.cBorder
                     anchors.verticalCenter: parent.verticalCenter
+
+                    TextInput {
+                        id: spdInput
+                        anchors.fill: parent
+                        horizontalAlignment: TextInput.AlignHCenter
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: root.cTextMain
+                        font.pixelSize: 10
+                        font.bold: true
+                        selectByMouse: true
+                        text: activeFocus ? text : Math.round(audioEngine.speed * 100) + "%"
+
+                        onAccepted: {
+                            var raw = parseInt(text.replace("%", "").trim())
+                            if (!isNaN(raw)) {
+                                var clamped = Math.max(50, Math.min(200, raw))
+                                audioEngine.setSpeed(clamped / 100.0)
+                                root.saveCurrentTrack()
+                            }
+                            focus = false
+                        }
+                    }
                 }
             }
         }
     }
+
     Rectangle {
         id: urlModal
         anchors.fill: parent

@@ -19,6 +19,7 @@ StreamManager::~StreamManager() {
         m_process.kill();
         m_process.waitForFinished(1000);
     }
+    purgeCache();
 }
 
 bool StreamManager::isBusy() const {
@@ -143,7 +144,7 @@ void StreamManager::processDownload(const QString& target, const QString& custom
         });
         return;
     }
-
+    purgeCache();
     setStatus("Fetching video info...", true);
 
     QString query = target;

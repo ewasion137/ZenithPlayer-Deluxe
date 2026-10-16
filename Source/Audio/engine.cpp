@@ -308,12 +308,13 @@ void Engine::play(const QString& filePath) {
     emit positionChanged();
 }
 
-void Engine::togglePlayPause() {
+void Engine::stopWithReturn() {
     if (!m_soundLoaded) {
         return;
     }
 
     if (m_isPlaying) {
+        seek(m_playbackStartSec);
         pause();
     } else {
         m_playbackStartSec = position();
@@ -321,19 +322,6 @@ void Engine::togglePlayPause() {
         m_isPlaying = true;
         m_tickTimer.start();
         emit stateChanged();
-    }
-}
-
-void Engine::stopWithReturn() {
-    if (!m_soundLoaded) {
-        return;
-    }
-
-    if (m_flStudioMode) {
-        seek(m_playbackStartSec);
-        pause();
-    } else {
-        togglePlayPause();
     }
 }
 
@@ -365,7 +353,28 @@ void Engine::seek(double seconds) {
     const double target = std::clamp(seconds, 0.0, m_duration);
     const auto frame = static_cast<ma_uint64>(target * ma_engine_get_sample_rate(m_engine));
     ma_sound_seek_to_pcm_frame(m_sound, frame);
+    
+    // Новая позиция слайдера становится постоянным якорем для пробела
+    m_playbackStartSec = target;
+    
     emit positionChanged();
+}
+
+void Engine::togglePlayPause() {
+    if (!m_soundLoaded) {
+        return;
+    }
+
+    if (m_isPlaying) {
+        pause();
+        // Пауза кнопкой закрепляет текущую точку как новый старт
+        m_playbackStartSec = position();
+    } else {
+        ma_sound_start(m_sound);
+        m_isPlaying = true;
+        m_tickTimer.start();
+        emit stateChanged();
+    }
 }
 
 void Engine::onTick() {

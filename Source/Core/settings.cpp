@@ -118,8 +118,8 @@ void Settings::resetTrackSettings(const QString& path) {
 void Settings::addWebTrack(const QString& id, const QString& url, const QString& name, const QString& artist, const QString& picture) {
     for (int i = 0; i < m_webTracks.size(); ++i) {
         if (m_webTracks[i].toObject()["url"].toString() == url) {
-            m_webTracks.removeAt(i);
-            break;
+            // Track already exists: keep its chronological position
+            return;
         }
     }
 
