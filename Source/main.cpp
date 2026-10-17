@@ -9,6 +9,7 @@
 #include "Audio/engine.hpp"
 #include "Core/settings.hpp"
 #include "Network/stream.hpp"
+#include "Network/discord.hpp"
 #include "Utils/hotkeys.hpp"
 
 class CoverProvider : public QQuickImageProvider {
@@ -46,9 +47,40 @@ int main(int argc, char* argv[]) {
     Audio::Engine audioEngine;
     Core::Settings settingsStore;
     Network::StreamManager streamManager;
+    Network::DiscordRPC discordRPC;
     Utils::GlobalHotkeys globalHotkeys;
 
-    // Глобальные хоткеи для любой точки Windows (игры, браузер, рабочий стол)
+    auto syncDiscordActivity = [&]() {
+        if (!discordRPC.isConnected()) return;
+        if (library.currentTrackPath().isEmpty()) {
+            discordRPC.clearActivity();
+            return;
+        }
+
+        discordRPC.updateActivity(
+            library.currentTitle(),
+            library.currentArtist(),
+            library.currentAlbum(),
+            audioEngine.duration(),
+            audioEngine.position(),
+            audioEngine.speed(),
+            audioEngine.isPlaying(),
+            library.currentOnlineCoverUrl()
+        );
+    };
+
+    QObject::connect(&audioEngine, &Audio::Engine::stateChanged, syncDiscordActivity);
+    QObject::connect(&audioEngine, &Audio::Engine::speedChanged, syncDiscordActivity);
+    QObject::connect(&library, &Player::Library::currentTrackPathChanged, syncDiscordActivity);
+
+    // Автоподключение сохраненного ID при старте
+    const QString savedId = settingsStore.getDiscordClientId();
+    if (!savedId.isEmpty()) {
+        discordRPC.setClientId(savedId);
+        discordRPC.connectRpc(savedId);
+    }
+
+    // Хоткеи
     QObject::connect(&globalHotkeys, &Utils::GlobalHotkeys::playPauseTriggered, [&]() {
         audioEngine.togglePlayPause();
     });
@@ -82,10 +114,10 @@ int main(int argc, char* argv[]) {
     });
 
     QObject::connect(&streamManager, &Network::StreamManager::streamReady,
-                     [&](const QString& filePath, const QString& title, const QString& artist, const QString& coverPath, const QString& originalUrl) {
-        settingsStore.addWebTrack(filePath, originalUrl, title, artist, coverPath);
+                     [&](const QString& filePath, const QString& title, const QString& artist, const QString& coverPath, const QString& originalUrl, const QString& remoteCoverUrl) {
+        settingsStore.addWebTrack(filePath, originalUrl, title, artist, remoteCoverUrl);
         library.setCurrentTrackPath(filePath);
-        library.setWebMetadata(title, artist, coverPath);
+        library.setWebMetadata(title, artist, coverPath, remoteCoverUrl);
         audioEngine.play(filePath);
     });
 
@@ -96,6 +128,7 @@ int main(int argc, char* argv[]) {
     engine.rootContext()->setContextProperty("audioEngine", &audioEngine);
     engine.rootContext()->setContextProperty("settingsStore", &settingsStore);
     engine.rootContext()->setContextProperty("streamManager", &streamManager);
+    engine.rootContext()->setContextProperty("discordRPC", &discordRPC);
 
     const QUrl url(QStringLiteral("qrc:/Main.qml"));
 

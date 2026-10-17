@@ -84,16 +84,19 @@ void Library::setCurrentTrackPath(const QString& path) {
     m_currentTrackPath = path;
 
     if (!path.contains("WebStream")) {
+        m_currentOnlineCoverUrl = "";
         updateMetadata(path);
     }
 
     emit currentTrackPathChanged();
 }
 
-void Library::setWebMetadata(const QString& title, const QString& artist, const QString& coverPath) {
+
+void Library::setWebMetadata(const QString& title, const QString& artist, const QString& coverPath, const QString& onlineUrl) {
     m_currentTitle = title;
     m_currentArtist = artist;
     m_currentAlbum = "Online Stream";
+    m_currentOnlineCoverUrl = onlineUrl;
 
     if (!coverPath.isEmpty() && QFile::exists(coverPath)) {
         m_cachedCover = QImage(coverPath);

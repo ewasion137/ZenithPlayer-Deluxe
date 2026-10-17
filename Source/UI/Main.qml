@@ -143,6 +143,7 @@ Window {
         z: 100
 
         Text {
+            id: titleLabel
             anchors.left: parent.left
             anchors.leftMargin: 16
             anchors.verticalCenter: parent.verticalCenter
@@ -151,6 +152,28 @@ Window {
             font.pixelSize: 11
             font.bold: true
             font.letterSpacing: 2.0
+        }
+
+        Button {
+            id: rpcBtn
+            anchors.left: titleLabel.right
+            anchors.leftMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            height: 24
+            text: "🎮 " + (discordRPC.isConnected ? "RPC: ON" : "RPC")
+            contentItem: Text {
+                text: parent.text
+                color: discordRPC.isConnected ? "#10b981" : root.cTextDim
+                font.pixelSize: 10
+                font.bold: true
+                verticalAlignment: Text.AlignVCenter
+            }
+            background: Rectangle {
+                radius: 4
+                color: parent.hovered ? "#1f2438" : root.cSurface
+                border.color: discordRPC.isConnected ? "#10b981" : root.cBorder
+            }
+            onClicked: rpcModal.visible = true
         }
 
         Rectangle {
@@ -1395,6 +1418,167 @@ Window {
                         onClicked: {
                             if (urlInputField.text.trim() !== "") {
                                 streamManager.resolveAndDownload(urlInputField.text.trim())
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    Rectangle {
+        id: rpcModal
+        anchors.fill: parent
+        color: "#b0000000"
+        visible: false
+        z: 9999
+
+        MouseArea {
+            anchors.fill: parent
+            onClicked: rpcModal.visible = false
+        }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: 440
+            height: 210
+            radius: 12
+            color: root.cPanelBg
+            border.color: root.cAccent
+            border.width: 1
+
+            MouseArea { anchors.fill: parent }
+
+            Column {
+                anchors.fill: parent
+                anchors.margins: 18
+                spacing: 12
+
+                Item {
+                    width: parent.width
+                    height: 24
+
+                    Text {
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "DISCORD RICH PRESENCE"
+                        color: root.cTextMain
+                        font.pixelSize: 11
+                        font.bold: true
+                        font.letterSpacing: 1.0
+                    }
+
+                    Button {
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 24
+                        height: 24
+                        text: "✕"
+                        contentItem: Text {
+                            text: parent.text
+                            color: root.cTextDim
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        background: Rectangle { color: parent.hovered ? "#ef4444" : "transparent"; radius: 12 }
+                        onClicked: rpcModal.visible = false
+                    }
+                }
+
+                Text {
+                    text: "Application Client ID:"
+                    color: root.cTextDim
+                    font.pixelSize: 10
+                    font.bold: true
+                }
+
+                Rectangle {
+                    width: parent.width
+                    height: 36
+                    color: root.cSurface
+                    radius: 6
+                    border.color: root.cBorder
+
+                    TextInput {
+                        id: rpcIdInput
+                        anchors.fill: parent
+                        anchors.leftMargin: 10
+                        anchors.rightMargin: 10
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: root.cTextMain
+                        font.pixelSize: 12
+                        selectByMouse: true
+                        text: discordRPC.clientId
+
+                        Text {
+                            anchors.fill: parent
+                            verticalAlignment: Text.AlignVCenter
+                            text: "Paste Discord Application Client ID..."
+                            color: root.cTextDim
+                            font.pixelSize: 11
+                            visible: parent.text === ""
+                        }
+                    }
+                }
+
+                Row {
+                    width: parent.width
+                    height: 20
+                    spacing: 8
+
+                    Text {
+                        text: "Status:"
+                        color: root.cTextDim
+                        font.pixelSize: 11
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    Text {
+                        text: discordRPC.statusText
+                        color: discordRPC.isConnected ? "#10b981" : (discordRPC.statusText.indexOf("Connecting") !== -1 ? "#f59e0b" : "#ef4444")
+                        font.pixelSize: 11
+                        font.bold: true
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                Row {
+                    anchors.right: parent.right
+                    spacing: 10
+
+                    Button {
+                        height: 30
+                        text: "Disconnect"
+                        enabled: discordRPC.isConnected
+                        contentItem: Text {
+                            text: parent.text
+                            color: discordRPC.isConnected ? root.cTextMain : root.cTextDim
+                            font.pixelSize: 11
+                        }
+                        background: Rectangle { radius: 4; color: root.cSurface; border.color: root.cBorder }
+                        onClicked: discordRPC.disconnectRpc()
+                    }
+
+                    Button {
+                        height: 30
+                        width: 100
+                        text: "Connect"
+                        contentItem: Text {
+                            text: parent.text
+                            color: "#ffffff"
+                            font.pixelSize: 11
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                        background: Rectangle {
+                            radius: 4
+                            color: root.cAccent
+                        }
+                        onClicked: {
+                            const id = rpcIdInput.text.trim()
+                            if (id !== "") {
+                                settingsStore.setDiscordClientId(id)
+                                discordRPC.connectRpc(id)
                             }
                         }
                     }

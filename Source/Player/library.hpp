@@ -36,7 +36,8 @@ public:
     Q_INVOKABLE void setSearchQuery(const QString& query);
     Q_INVOKABLE QString getNextTrack() const;
     Q_INVOKABLE QString getPreviousTrack() const;
-    Q_INVOKABLE void setWebMetadata(const QString& title, const QString& artist, const QString& coverUrl);
+    QString currentOnlineCoverUrl() const { return m_currentOnlineCoverUrl; }
+    Q_INVOKABLE void setWebMetadata(const QString& title, const QString& artist, const QString& coverPath, const QString& onlineUrl = "");
 
 signals:
     void foldersChanged();
@@ -55,6 +56,7 @@ private:
     QString m_currentCoverUrl{""};
     QString m_searchQuery{""};
     QImage m_cachedCover;
+    QString m_currentOnlineCoverUrl{""};
 };
 
 } // namespace Player

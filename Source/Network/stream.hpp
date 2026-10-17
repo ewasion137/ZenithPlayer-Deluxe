@@ -25,7 +25,7 @@ public:
 signals:
     void busyChanged();
     void statusTextChanged();
-    void streamReady(const QString& filePath, const QString& title, const QString& artist, const QString& coverPath, const QString& originalUrl);
+    void streamReady(const QString& filePath, const QString& title, const QString& artist, const QString& coverPath, const QString& originalUrl, const QString& remoteCoverUrl);
     void streamError(const QString& message);
 
 private:

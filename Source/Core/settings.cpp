@@ -115,6 +115,15 @@ void Settings::resetTrackSettings(const QString& path) {
     persist();
 }
 
+QString Settings::getDiscordClientId() {
+    return m_data.value("discord_client_id").toString();
+}
+
+void Settings::setDiscordClientId(const QString& id) {
+    m_data["discord_client_id"] = id;
+    persist();
+}
+
 void Settings::addWebTrack(const QString& id, const QString& url, const QString& name, const QString& artist, const QString& picture) {
     for (int i = 0; i < m_webTracks.size(); ++i) {
         if (m_webTracks[i].toObject()["url"].toString() == url) {

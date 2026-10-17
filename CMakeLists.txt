@@ -26,6 +26,8 @@ add_executable(ZenithPlayerDeluxe
     Source/Core/settings.cpp
     Source/Network/stream.hpp
     Source/Network/stream.cpp
+    Source/Network/discord.hpp
+    Source/Network/discord.cpp
     Source/Utils/hotkeys.hpp
     Source/Utils/hotkeys.cpp
     Source/UI/qml.qrc

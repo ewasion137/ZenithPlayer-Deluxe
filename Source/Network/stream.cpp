@@ -257,13 +257,13 @@ void StreamManager::downloadCoverAndFinish(const QString& coverUrl, const QStrin
     }
 
     if (targetCoverUrl.isEmpty()) {
-        emit streamReady(audioPath, title, artist, "", originalUrl);
+        emit streamReady(audioPath, title, artist, "", originalUrl, "");
         return;
     }
 
     const QString coverPath = cacheDirectory() + "/" + trackId + ".jpg";
     if (QFile::exists(coverPath)) {
-        emit streamReady(audioPath, title, artist, coverPath, originalUrl);
+        emit streamReady(audioPath, title, artist, coverPath, originalUrl, targetCoverUrl);
         return;
     }
 
@@ -271,7 +271,7 @@ void StreamManager::downloadCoverAndFinish(const QString& coverUrl, const QStrin
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 
     QNetworkReply* reply = m_netManager.get(req);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, coverPath, audioPath, title, artist, originalUrl]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, coverPath, audioPath, title, artist, originalUrl, targetCoverUrl]() {
         reply->deleteLater();
         if (reply->error() == QNetworkReply::NoError) {
             QFile file(coverPath);
@@ -280,7 +280,7 @@ void StreamManager::downloadCoverAndFinish(const QString& coverUrl, const QStrin
                 file.close();
             }
         }
-        emit streamReady(audioPath, title, artist, coverPath, originalUrl);
+        emit streamReady(audioPath, title, artist, coverPath, originalUrl, targetCoverUrl);
     });
 }
 

@@ -24,6 +24,8 @@ public:
 
     Q_INVOKABLE void addWebTrack(const QString& id, const QString& url, const QString& name, const QString& artist, const QString& picture);
     Q_INVOKABLE void removeWebTrack(const QString& url);
+    Q_INVOKABLE QString getDiscordClientId();
+    Q_INVOKABLE void setDiscordClientId(const QString& id);
 
 signals:
     void settingsSaved();
