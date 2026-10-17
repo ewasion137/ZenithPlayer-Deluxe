@@ -20,6 +20,8 @@ class Engine : public QObject {
     Q_PROPERTY(float speed READ speed WRITE setSpeed NOTIFY speedChanged)
     Q_PROPERTY(bool flStudioMode READ flStudioMode WRITE setFlStudioMode NOTIFY flStudioModeChanged)
     Q_PROPERTY(QVariantList eqGains READ eqGains NOTIFY eqGainsChanged)
+    Q_PROPERTY(QVariantList spectrum READ spectrum NOTIFY spectrumChanged)
+    Q_PROPERTY(QVariantList waveform READ waveform NOTIFY waveformChanged)
 
 public:
     explicit Engine(QObject* parent = nullptr);
@@ -46,6 +48,8 @@ public:
     Q_INVOKABLE void setAllEqGains(const QVariantList& gains);
     Q_INVOKABLE void resetEq();
     Q_INVOKABLE QString formatTime(double seconds) const;
+    QVariantList spectrum() const;
+    QVariantList waveform() const;
 
 signals:
     void stateChanged();
@@ -56,6 +60,8 @@ signals:
     void flStudioModeChanged();
     void eqGainsChanged();
     void trackEnded();
+    void spectrumChanged();
+    void waveformChanged();
 
 private slots:
     void onTick();
@@ -77,6 +83,8 @@ private:
     float m_speed{1.0f};
     std::vector<float> m_eqGains;
     QTimer m_tickTimer;
+    QVariantList m_spectrum;
+    QVariantList m_waveform;
 };
 
 } // namespace Audio

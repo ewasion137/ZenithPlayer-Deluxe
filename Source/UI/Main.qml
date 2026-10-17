@@ -548,7 +548,7 @@ Window {
                                 radius: 3
                                 property var trackData: modelData
                                 property bool isSelected: library.currentTrackPath === trackData.fullPath
-                                color: isSelected ? "#231e3d" : (trackArea.containsMouse ? "#181a26" : "transparent")
+                                color: isSelected ? "#231f3d" : (trackArea.containsMouse ? "#181a26" : "transparent")
 
                                 Rectangle {
                                     width: 2
@@ -617,6 +617,42 @@ Window {
             anchors.left: sidebarSplitter.right
             anchors.right: parent.right
             anchors.margins: 20
+
+            // Фоновая спектрограмма (GPU Canvas)
+            Canvas {
+                id: specCanvas
+                anchors.fill: parent
+                opacity: 0.16
+                visible: audioEngine.isPlaying
+
+                Connections {
+                    target: audioEngine
+                    function onSpectrumChanged() { specCanvas.requestPaint() }
+                }
+
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.reset()
+                    var bins = audioEngine.spectrum
+                    if (!bins || bins.length === 0) return
+
+                    var w = width
+                    var h = height
+                    var count = bins.length
+                    var barW = (w / count) * 1.4
+
+                    var grad = ctx.createLinearGradient(0, h, 0, h * 0.4)
+                    grad.addColorStop(0, root.cAccent)
+                    grad.addColorStop(1, "#38bdf8")
+                    ctx.fillStyle = grad
+
+                    for (var i = 0; i < count; i++) {
+                        var val = bins[i]
+                        var barH = val * (h * 0.45)
+                        ctx.fillRect(i * (barW + 2), h - barH, barW, barH)
+                    }
+                }
+            }
 
             Column {
                 anchors.fill: parent
@@ -905,7 +941,7 @@ Window {
         Column {
             anchors.centerIn: parent
             width: 480
-            spacing: 6
+            spacing: 4
 
             Row {
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -1051,28 +1087,65 @@ Window {
                         }
                     }
 
-                    background: Rectangle {
+                    // Вейвформа вместо плоской линии
+                    background: Item {
                         x: progressSlider.leftPadding
                         y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
                         width: progressSlider.availableWidth
-                        height: 5
-                        radius: 2.5
-                        color: "#181a26"
+                        height: 22
 
-                        Rectangle {
-                            width: progressSlider.visualPosition * parent.width
-                            height: parent.height
-                            color: root.cAccent
-                            radius: 2.5
+                        Canvas {
+                            id: waveCanvas
+                            anchors.fill: parent
+
+                            Connections {
+                                target: audioEngine
+                                function onWaveformChanged() { waveCanvas.requestPaint() }
+                                function onPositionChanged() { waveCanvas.requestPaint() }
+                            }
+
+                            onPaint: {
+                                var ctx = getContext("2d")
+                                ctx.reset()
+                                var peaks = audioEngine.waveform
+                                var w = width
+                                var h = height
+                                var progress = progressSlider.visualPosition
+
+                                if (!peaks || peaks.length === 0) {
+                                    ctx.fillStyle = "#181a26"
+                                    ctx.fillRect(0, h / 2 - 2, w, 4)
+                                    ctx.fillStyle = root.cAccent
+                                    ctx.fillRect(0, h / 2 - 2, progress * w, 4)
+                                    return
+                                }
+
+                                var count = peaks.length
+                                var barW = (w / count) - 1.2
+                                var progressX = progress * w
+
+                                for (var i = 0; i < count; i++) {
+                                    var x = i * (barW + 1.2)
+                                    var barH = Math.max(2, peaks[i] * (h - 2))
+                                    var y = (h - barH) / 2
+
+                                    if (x <= progressX) {
+                                        ctx.fillStyle = root.cAccent
+                                    } else {
+                                        ctx.fillStyle = "#222638"
+                                    }
+                                    ctx.fillRect(x, y, Math.max(1, barW), barH)
+                                }
+                            }
                         }
                     }
 
                     handle: Rectangle {
                         x: progressSlider.leftPadding + progressSlider.visualPosition * (progressSlider.availableWidth - width)
                         y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
-                        width: progressSlider.hovered || progressSlider.pressed ? 12 : 6
-                        height: width
-                        radius: width / 2
+                        width: progressSlider.hovered || progressSlider.pressed ? 12 : 2
+                        height: progressSlider.hovered || progressSlider.pressed ? 12 : 24
+                        radius: progressSlider.hovered || progressSlider.pressed ? 6 : 1
                         color: "#ffffff"
                     }
                 }
@@ -1425,6 +1498,7 @@ Window {
             }
         }
     }
+
     Rectangle {
         id: rpcModal
         anchors.fill: parent

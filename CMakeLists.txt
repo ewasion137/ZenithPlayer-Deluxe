@@ -22,6 +22,9 @@ add_executable(ZenithPlayerDeluxe
     Source/Player/library.cpp
     Source/Audio/engine.hpp
     Source/Audio/engine.cpp
+    Source/Audio/fft.hpp
+    Source/Audio/waveform.hpp
+    Source/Audio/waveform.cpp
     Source/Core/settings.hpp
     Source/Core/settings.cpp
     Source/Network/stream.hpp

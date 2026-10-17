@@ -2,6 +2,9 @@
 #include "miniaudio.h"
 
 #include "engine.hpp"
+#include "fft.hpp"
+#include "waveform.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <QFile>
@@ -65,6 +68,9 @@ struct CustomEqNode {
     ma_peak2 filters[7];
 };
 
+static float g_fftSamples[256] = {0.0f};
+static size_t g_fftWritePos = 0;
+
 void eqNodeProcess(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCountIn, float** ppFramesOut, ma_uint32* pFrameCountOut) {
     auto* pEq = reinterpret_cast<CustomEqNode*>(pNode);
     const ma_uint32 frameCount = *pFrameCountIn;
@@ -80,6 +86,13 @@ void eqNodeProcess(ma_node* pNode, const float** ppFramesIn, ma_uint32* pFrameCo
     for (ma_uint32 s = 0; s < sampleCount; ++s) {
         if (pOut[s] > 1.0f) pOut[s] = 1.0f;
         else if (pOut[s] < -1.0f) pOut[s] = -1.0f;
+    }
+
+    // Буфер для FFT спектрограммы
+    for (ma_uint32 i = 0; i < frameCount; ++i) {
+        const float mono = (pOut[i * 2] + pOut[i * 2 + 1]) * 0.5f;
+        g_fftSamples[g_fftWritePos] = mono;
+        g_fftWritePos = (g_fftWritePos + 1) % 256;
     }
 
     *pFrameCountOut = frameCount;
@@ -204,6 +217,14 @@ QVariantList Engine::eqGains() const {
     return list;
 }
 
+QVariantList Engine::spectrum() const {
+    return m_spectrum;
+}
+
+QVariantList Engine::waveform() const {
+    return m_waveform;
+}
+
 void Engine::setVolume(float vol) {
     m_volume = std::clamp(vol, 0.0f, 2.0f);
     if (m_soundLoaded) {
@@ -295,10 +316,14 @@ void Engine::unloadSound(bool fade) {
     m_isPlaying = false;
     m_duration = 0.0;
     m_playbackStartSec = 0.0;
+    m_spectrum.clear();
+    m_waveform.clear();
 
     emit stateChanged();
     emit durationChanged();
     emit positionChanged();
+    emit spectrumChanged();
+    emit waveformChanged();
 }
 
 void Engine::play(const QString& filePath) {
@@ -352,6 +377,15 @@ void Engine::play(const QString& filePath) {
     m_duration = static_cast<double>(len);
     m_playbackStartSec = 0.0;
 
+    // Генерация 120 пиков формы волны
+    const auto peaks = generateWaveformPeaks(filePath, 120);
+    m_waveform.clear();
+    m_waveform.reserve(static_cast<qsizetype>(peaks.size()));
+    for (float p : peaks) {
+        m_waveform.append(p);
+    }
+    emit waveformChanged();
+
     ma_sound_start(m_sound);
     m_isPlaying = true;
     m_tickTimer.start();
@@ -383,7 +417,9 @@ void Engine::pause() {
         ma_sound_stop(m_sound);
         m_isPlaying = false;
         m_tickTimer.stop();
+        m_spectrum.clear();
         emit stateChanged();
+        emit spectrumChanged();
     }
 }
 
@@ -394,8 +430,10 @@ void Engine::stop() {
         m_isPlaying = false;
         m_playbackStartSec = 0.0;
         m_tickTimer.stop();
+        m_spectrum.clear();
         emit stateChanged();
         emit positionChanged();
+        emit spectrumChanged();
     }
 }
 
@@ -441,9 +479,26 @@ void Engine::onTick() {
     if (ma_sound_at_end(m_sound)) {
         m_isPlaying = false;
         m_tickTimer.stop();
+        m_spectrum.clear();
         emit stateChanged();
+        emit spectrumChanged();
         emit trackEnded();
         return;
+    }
+
+    if (m_isPlaying) {
+        float samples[256];
+        for (size_t i = 0; i < 256; ++i) {
+            samples[i] = g_fftSamples[(g_fftWritePos + i) % 256];
+        }
+
+        const auto mags = calculateFftMagnitudes(samples, 256, 48);
+        m_spectrum.clear();
+        m_spectrum.reserve(static_cast<qsizetype>(mags.size()));
+        for (float m : mags) {
+            m_spectrum.append(m);
+        }
+        emit spectrumChanged();
     }
 
     emit positionChanged();
