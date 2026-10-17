@@ -71,6 +71,68 @@ Window {
         onActivated: audioEngine.stopWithReturn()
     }
 
+    Shortcut {
+        sequence: "Alt+P"
+        onActivated: audioEngine.togglePlayPause()
+    }
+
+    Shortcut {
+        sequence: "Alt+Right"
+        onActivated: {
+            var next = library.getNextTrack()
+            if (next !== "") {
+                library.setCurrentTrackPath(next)
+                audioEngine.play(next)
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: "Alt+Left"
+        onActivated: {
+            if (audioEngine.position > 3.0) {
+                audioEngine.seek(0.0)
+            } else {
+                var prev = library.getPreviousTrack()
+                if (prev !== "") {
+                    library.setCurrentTrackPath(prev)
+                    audioEngine.play(prev)
+                }
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: StandardKey.MediaPlay
+        onActivated: audioEngine.togglePlayPause()
+    }
+
+    Shortcut {
+        sequence: StandardKey.MediaNext
+        onActivated: {
+            var nextTrack = library.getNextTrack()
+            if (nextTrack !== "") {
+                library.setCurrentTrackPath(nextTrack)
+                audioEngine.play(nextTrack)
+            }
+        }
+    }
+
+    Shortcut {
+        sequence: StandardKey.MediaPrevious
+        onActivated: {
+            if (audioEngine.position > 3.0) {
+                audioEngine.seek(0.0)
+            } else {
+                var prevTrack = library.getPreviousTrack()
+                if (prevTrack !== "") {
+                    library.setCurrentTrackPath(prevTrack)
+                    audioEngine.play(prevTrack)
+                }
+            }
+        }
+    }
+
     Rectangle {
         id: titleBar
         anchors.top: parent.top
@@ -954,7 +1016,17 @@ Window {
                     to: Math.max(0.1, audioEngine.duration)
                     value: pressed ? value : audioEngine.position
                     anchors.verticalCenter: parent.verticalCenter
-                    onMoved: audioEngine.seek(value)
+
+                    onPressedChanged: {
+                        if (!pressed) {
+                            audioEngine.seek(value)
+                        }
+                    }
+                    onMoved: {
+                        if (!pressed) {
+                            audioEngine.seek(value)
+                        }
+                    }
 
                     background: Rectangle {
                         x: progressSlider.leftPadding

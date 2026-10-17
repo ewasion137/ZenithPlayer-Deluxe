@@ -9,6 +9,7 @@
 #include "Audio/engine.hpp"
 #include "Core/settings.hpp"
 #include "Network/stream.hpp"
+#include "Utils/hotkeys.hpp"
 
 class CoverProvider : public QQuickImageProvider {
 public:
@@ -30,6 +31,7 @@ public:
 private:
     Player::Library* m_library;
 };
+
 int main(int argc, char* argv[]) {
     QApplication app(argc, argv);
 
@@ -44,6 +46,32 @@ int main(int argc, char* argv[]) {
     Audio::Engine audioEngine;
     Core::Settings settingsStore;
     Network::StreamManager streamManager;
+    Utils::GlobalHotkeys globalHotkeys;
+
+    // Глобальные хоткеи для любой точки Windows (игры, браузер, рабочий стол)
+    QObject::connect(&globalHotkeys, &Utils::GlobalHotkeys::playPauseTriggered, [&]() {
+        audioEngine.togglePlayPause();
+    });
+
+    QObject::connect(&globalHotkeys, &Utils::GlobalHotkeys::nextTriggered, [&]() {
+        const QString next = library.getNextTrack();
+        if (!next.isEmpty()) {
+            library.setCurrentTrackPath(next);
+            audioEngine.play(next);
+        }
+    });
+
+    QObject::connect(&globalHotkeys, &Utils::GlobalHotkeys::prevTriggered, [&]() {
+        if (audioEngine.position() > 3.0) {
+            audioEngine.seek(0.0);
+        } else {
+            const QString prev = library.getPreviousTrack();
+            if (!prev.isEmpty()) {
+                library.setCurrentTrackPath(prev);
+                audioEngine.play(prev);
+            }
+        }
+    });
 
     QObject::connect(&audioEngine, &Audio::Engine::trackEnded, [&]() {
         const QString next = library.getNextTrack();

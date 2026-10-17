@@ -26,6 +26,8 @@ add_executable(ZenithPlayerDeluxe
     Source/Core/settings.cpp
     Source/Network/stream.hpp
     Source/Network/stream.cpp
+    Source/Utils/hotkeys.hpp
+    Source/Utils/hotkeys.cpp
     Source/UI/qml.qrc
 )
 
@@ -34,6 +36,7 @@ target_include_directories(ZenithPlayerDeluxe PRIVATE
     Source/Audio
     Source/Core
     Source/Network
+    Source/Utils
 )
 
 target_link_libraries(ZenithPlayerDeluxe PRIVATE

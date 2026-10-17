@@ -154,7 +154,12 @@ void StreamManager::processDownload(const QString& target, const QString& custom
 
     auto* metaProc = new QProcess(this);
     QStringList metaArgs;
-    metaArgs << query << "--dump-json" << "--no-warnings" << "--no-playlist";
+    metaArgs << query
+             << "--dump-json"
+             << "--no-warnings"
+             << "--no-playlist"
+             << "--force-ipv4"
+             << "--extractor-args" << "youtube:player_client=android,web_embedded";
 
     connect(metaProc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, [this, metaProc, target, customTitle, customArtist, customCover, ytDlp, query](int exitCode, QProcess::ExitStatus) {
@@ -204,6 +209,8 @@ void StreamManager::processDownload(const QString& target, const QString& custom
                << "--audio-format" << "mp3"
                << "--no-playlist"
                << "--no-warnings"
+               << "--force-ipv4"
+               << "--extractor-args" << "youtube:player_client=android,web_embedded"
                << "-o" << outputPath;
 
         if (metaCover.isEmpty() && !metaId.isEmpty()) {

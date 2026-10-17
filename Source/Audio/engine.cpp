@@ -4,10 +4,58 @@
 #include "engine.hpp"
 #include <algorithm>
 #include <cmath>
+#include <QFile>
 
 namespace Audio {
 
 namespace {
+
+enum class AudioFormatType {
+    Unknown,
+    Wav,
+    Mp3,
+    Flac,
+    Ogg
+};
+
+AudioFormatType inspectAudioFormat(const QString& filePath) {
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly)) {
+        return AudioFormatType::Unknown;
+    }
+
+    const QByteArray header = file.read(12);
+    if (header.size() < 4) {
+        return AudioFormatType::Unknown;
+    }
+
+    // RIFF....WAVE
+    if (header.startsWith("RIFF") && header.mid(8, 4) == "WAVE") {
+        return AudioFormatType::Wav;
+    }
+
+    // fLaC
+    if (header.startsWith("fLaC")) {
+        return AudioFormatType::Flac;
+    }
+
+    // OggS
+    if (header.startsWith("OggS")) {
+        return AudioFormatType::Ogg;
+    }
+
+    // ID3v2 container or sync word 0xFFE0..0xFFFF
+    if (header.startsWith("ID3")) {
+        return AudioFormatType::Mp3;
+    }
+    const unsigned char b0 = static_cast<unsigned char>(header[0]);
+    const unsigned char b1 = static_cast<unsigned char>(header[1]);
+    if (b0 == 0xFF && (b1 & 0xE0) == 0xE0) {
+        return AudioFormatType::Mp3;
+    }
+
+    return AudioFormatType::Unknown;
+}
 
 constexpr double EQ_FREQUENCIES[7] = {60.0, 170.0, 350.0, 1000.0, 3500.0, 10000.0, 14000.0};
 constexpr double EQ_Q = 1.41;
@@ -258,6 +306,11 @@ void Engine::play(const QString& filePath) {
         return;
     }
 
+    const AudioFormatType fmt = inspectAudioFormat(filePath);
+    if (fmt == AudioFormatType::Unknown) {
+        return;
+    }
+
     unloadSound(true);
 
     ma_result res;
@@ -352,11 +405,15 @@ void Engine::seek(double seconds) {
     }
     const double target = std::clamp(seconds, 0.0, m_duration);
     const auto frame = static_cast<ma_uint64>(target * ma_engine_get_sample_rate(m_engine));
-    ma_sound_seek_to_pcm_frame(m_sound, frame);
-    
-    // Новая позиция слайдера становится постоянным якорем для пробела
+
+    if (m_isPlaying) {
+        ma_sound_seek_to_pcm_frame(m_sound, frame);
+        ma_sound_set_fade_in_milliseconds(m_sound, 0.001f, m_volume, 20);
+    } else {
+        ma_sound_seek_to_pcm_frame(m_sound, frame);
+    }
+
     m_playbackStartSec = target;
-    
     emit positionChanged();
 }
 
@@ -367,7 +424,6 @@ void Engine::togglePlayPause() {
 
     if (m_isPlaying) {
         pause();
-        // Пауза кнопкой закрепляет текущую точку как новый старт
         m_playbackStartSec = position();
     } else {
         ma_sound_start(m_sound);
