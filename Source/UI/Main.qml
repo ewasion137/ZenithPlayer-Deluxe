@@ -13,14 +13,14 @@ Window {
     color: "#08090d"
     flags: Qt.Window | Qt.FramelessWindowHint
 
-    readonly property color cBgMain: "#08090d"
-    readonly property color cPanelBg: "#10121a"
-    readonly property color cSurface: "#181a26"
-    readonly property color cAccent: "#8b5cf6"
-    readonly property color cAccentGlow: "#3b2d66"
-    readonly property color cTextMain: "#f8fafc"
-    readonly property color cTextDim: "#717b94"
-    readonly property color cBorder: "#1e2235"
+    readonly property color cBgMain: themeManager.bgMain
+    readonly property color cPanelBg: themeManager.panelBg
+    readonly property color cSurface: themeManager.surface
+    readonly property color cAccent: themeManager.accent
+    readonly property color cAccentGlow: themeManager.accentGlow
+    readonly property color cTextMain: themeManager.textMain
+    readonly property color cTextDim: themeManager.textDim
+    readonly property color cBorder: themeManager.border
 
     readonly property var eqLabels: ["60", "170", "350", "1k", "3.5k", "10k", "14k"]
     property real sidebarWidth: 320
@@ -147,11 +147,18 @@ Window {
             anchors.left: parent.left
             anchors.leftMargin: 16
             anchors.verticalCenter: parent.verticalCenter
-            text: "ZENITH PLAYER"
+            text: themeManager.textOverrides["window_title"] || "ZENITH PLAYER"
             color: root.cAccent
             font.pixelSize: 11
             font.bold: true
             font.letterSpacing: 2.0
+
+            SequentialAnimation on color {
+                running: themeManager.animations.length > 0
+                loops: Animation.Infinite
+                ColorAnimation { from: themeManager.accent; to: themeManager.accentSecondary; duration: 2500 }
+                ColorAnimation { from: themeManager.accentSecondary; to: themeManager.accent; duration: 2500 }
+            }
         }
 
         Button {
@@ -316,6 +323,14 @@ Window {
         anchors.bottom: bottomPlayerBar.top
         anchors.left: parent.left
         anchors.right: parent.right
+
+        Image {
+            anchors.fill: parent
+            source: themeManager.bgImageUrl
+            fillMode: Image.PreserveAspectCrop
+            opacity: 0.18
+            visible: themeManager.bgImageUrl !== ""
+        }
 
         Rectangle {
             id: leftExplorer

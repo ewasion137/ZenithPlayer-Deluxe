@@ -265,6 +265,67 @@ Rectangle {
                             audioEngine.resetEq()
                         }
                     }
+                    Rectangle { width: parent.width; height: 1; color: "#181a26" }
+
+                    Text { text: "THEMES & VISUAL CUSTOMIZATION"; color: "#717b94"; font.pixelSize: 10; font.bold: true }
+
+                    Row {
+                        width: parent.width
+                        spacing: 8
+
+                        Button {
+                            height: 28
+                            text: "📂 Open Themes Folder"
+                            contentItem: Text { text: parent.text; color: "#f8fafc"; font.pixelSize: 10; font.bold: true }
+                            background: Rectangle { radius: 4; color: parent.hovered ? "#8b5cf6" : "#181a26"; border.color: "#2d334d" }
+                            onClicked: themeManager.openThemesFolder()
+                        }
+
+                        Button {
+                            height: 28
+                            text: "↻ Reload"
+                            contentItem: Text { text: parent.text; color: "#717b94"; font.pixelSize: 10 }
+                            background: Rectangle { radius: 4; color: "#181a26"; border.color: "#2d334d" }
+                            onClicked: themeManager.refreshThemes()
+                        }
+                    }
+
+                    Column {
+                        width: parent.width
+                        spacing: 4
+
+                        Text { text: "Installed Themes (.zss):"; color: "#717b94"; font.pixelSize: 9 }
+
+                        Repeater {
+                            model: themeManager.availableThemes
+
+                            delegate: Rectangle {
+                                width: parent.width
+                                height: 26
+                                radius: 4
+                                color: themeManager.currentTheme === modelData ? "#251b42" : (themeRowArea.containsMouse ? "#161824" : "transparent")
+                                border.color: themeManager.currentTheme === modelData ? "#8b5cf6" : "transparent"
+
+                                Text {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: modelData
+                                    color: themeManager.currentTheme === modelData ? "#ffffff" : "#717b94"
+                                    font.pixelSize: 10
+                                    font.bold: themeManager.currentTheme === modelData
+                                }
+
+                                MouseArea {
+                                    id: themeRowArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: themeManager.applyTheme(modelData)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -31,6 +31,12 @@ add_executable(ZenithPlayerDeluxe
     Source/Network/stream.cpp
     Source/Network/discord.hpp
     Source/Network/discord.cpp
+    Source/Theme/security.hpp
+    Source/Theme/security.cpp
+    Source/Theme/parser.hpp
+    Source/Theme/parser.cpp
+    Source/Theme/manager.hpp
+    Source/Theme/manager.cpp
     Source/Utils/hotkeys.hpp
     Source/Utils/hotkeys.cpp
     Source/UI/qml.qrc
@@ -41,6 +47,7 @@ target_include_directories(ZenithPlayerDeluxe PRIVATE
     Source/Audio
     Source/Core
     Source/Network
+    Source/Theme
     Source/Utils
 )
 

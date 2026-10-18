@@ -11,6 +11,7 @@
 #include "Network/stream.hpp"
 #include "Network/discord.hpp"
 #include "Utils/hotkeys.hpp"
+#include "Theme/manager.hpp"
 
 class CoverProvider : public QQuickImageProvider {
 public:
@@ -142,7 +143,9 @@ int main(int argc, char* argv[]) {
 
     QQmlApplicationEngine engine;
     engine.addImageProvider("covers", new CoverProvider(&library));
-
+    Theme::Manager themeManager(&settingsStore);
+    
+    engine.rootContext()->setContextProperty("themeManager", &themeManager);
     engine.rootContext()->setContextProperty("library", &library);
     engine.rootContext()->setContextProperty("audioEngine", &audioEngine);
     engine.rootContext()->setContextProperty("settingsStore", &settingsStore);
