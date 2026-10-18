@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <vector>
@@ -28,30 +29,43 @@ inline void cooleyTukeyFft(std::vector<std::complex<float>>& x) {
     }
 }
 
-inline std::vector<float> calculateFftMagnitudes(const float* monoSamples, size_t sampleCount, size_t outBins = 64) {
+inline std::vector<float> calculateFftMagnitudes(const float* monoSamples, size_t sampleCount, size_t outBins = 48) {
     if (sampleCount < 256) return std::vector<float>(outBins, 0.0f);
 
     std::vector<std::complex<float>> data(256);
     for (size_t i = 0; i < 256; ++i) {
-        // Hann window to reduce spectral leakage
-        const float multiplier = 0.5f * (1.0f - std::cos(2.0f * static_cast<float>(M_PI) * i / 255.0f));
-        data[i] = std::complex<float>(monoSamples[i] * multiplier, 0.0f);
+        // Hann window
+        const float win = 0.5f * (1.0f - std::cos(2.0f * static_cast<float>(M_PI) * i / 255.0f));
+        data[i] = std::complex<float>(monoSamples[i] * win, 0.0f);
     }
 
     cooleyTukeyFft(data);
 
     std::vector<float> magnitudes(outBins, 0.0f);
-    const size_t binsToAverage = (128 / outBins);
 
+    // Логарифмическое распределение полос от ~40 Гц до ~20 кГц (пропуская нулевой бин DC)
     for (size_t i = 0; i < outBins; ++i) {
-        float sum = 0.0f;
-        for (size_t j = 0; j < binsToAverage; ++j) {
-            const size_t idx = i * binsToAverage + j;
-            if (idx < 128) {
-                sum += std::abs(data[idx]);
-            }
+        const float t0 = static_cast<float>(i) / static_cast<float>(outBins);
+        const float t1 = static_cast<float>(i + 1) / static_cast<float>(outBins);
+
+        const size_t startBin = 1 + static_cast<size_t>(std::pow(t0, 1.9f) * 126.0f);
+        const size_t endBin = std::max(startBin + 1, 1 + static_cast<size_t>(std::pow(t1, 1.9f) * 126.0f));
+
+        float peakVal = 0.0f;
+        for (size_t k = startBin; k < endBin && k < 128; ++k) {
+            const float mag = std::abs(data[k]) / 128.0f;
+            if (mag > peakVal) peakVal = mag;
         }
-        magnitudes[i] = std::clamp((sum / static_cast<float>(binsToAverage)) * 0.08f, 0.0f, 1.0f);
+
+        // Акустическая компенсация высоких частот (Treble compensation)
+        const float trebleBoost = 1.0f + (static_cast<float>(i) / static_cast<float>(outBins)) * 3.5f;
+        const float boosted = peakVal * trebleBoost;
+
+        // Логарифмический перевод в децибелы: диапазон от -55 dB до 0 dB
+        const float db = 20.0f * std::log10(std::max(1e-4f, boosted));
+        const float normalized = std::clamp((db + 55.0f) / 55.0f, 0.0f, 1.0f);
+
+        magnitudes[i] = normalized;
     }
 
     return magnitudes;

@@ -318,6 +318,7 @@ void Engine::unloadSound(bool fade) {
     m_playbackStartSec = 0.0;
     m_spectrum.clear();
     m_waveform.clear();
+    m_smoothedSpectrum.clear();
 
     emit stateChanged();
     emit durationChanged();
@@ -480,6 +481,7 @@ void Engine::onTick() {
         m_isPlaying = false;
         m_tickTimer.stop();
         m_spectrum.clear();
+        m_smoothedSpectrum.clear();
         emit stateChanged();
         emit spectrumChanged();
         emit trackEnded();
@@ -492,12 +494,33 @@ void Engine::onTick() {
             samples[i] = g_fftSamples[(g_fftWritePos + i) % 256];
         }
 
-        const auto mags = calculateFftMagnitudes(samples, 256, 48);
-        m_spectrum.clear();
-        m_spectrum.reserve(static_cast<qsizetype>(mags.size()));
-        for (float m : mags) {
-            m_spectrum.append(m);
+        const auto rawMags = calculateFftMagnitudes(samples, 256, 48);
+
+        if (m_smoothedSpectrum.size() != rawMags.size()) {
+            m_smoothedSpectrum.assign(rawMags.size(), 0.0f);
         }
+
+        m_spectrum.clear();
+        m_spectrum.reserve(static_cast<qsizetype>(rawMags.size()));
+
+        for (size_t i = 0; i < rawMags.size(); ++i) {
+            const float target = rawMags[i];
+            float current = m_smoothedSpectrum[i];
+
+            if (target > current) {
+                // Быстрый панчевый подъем на пиках
+                current = current * 0.25f + target * 0.75f;
+            } else {
+                // Мягкое плавное падение без дрожания
+                current = current * 0.85f;
+            }
+
+            if (current < 0.005f) current = 0.0f;
+
+            m_smoothedSpectrum[i] = current;
+            m_spectrum.append(current);
+        }
+
         emit spectrumChanged();
     }
 

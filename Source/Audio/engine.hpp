@@ -85,6 +85,7 @@ private:
     QTimer m_tickTimer;
     QVariantList m_spectrum;
     QVariantList m_waveform;
+    std::vector<float> m_smoothedSpectrum;
 };
 
 } // namespace Audio
