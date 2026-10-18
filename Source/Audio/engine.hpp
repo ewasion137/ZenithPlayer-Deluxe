@@ -47,6 +47,7 @@ public:
     Q_INVOKABLE void setEqGain(int index, float gainDb);
     Q_INVOKABLE void setAllEqGains(const QVariantList& gains);
     Q_INVOKABLE void resetEq();
+    Q_INVOKABLE void setFpsCap(int fps);
     Q_INVOKABLE QString formatTime(double seconds) const;
     QVariantList spectrum() const;
     QVariantList waveform() const;

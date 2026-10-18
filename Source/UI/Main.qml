@@ -176,6 +176,28 @@ Window {
             onClicked: rpcModal.visible = true
         }
 
+        Button {
+            id: settingsBtn
+            anchors.left: rpcBtn.right
+            anchors.leftMargin: 8
+            anchors.verticalCenter: parent.verticalCenter
+            height: 24
+            text: "⚙ Settings"
+            contentItem: Text {
+                text: parent.text
+                color: root.cTextDim
+                font.pixelSize: 10
+                font.bold: true
+                verticalAlignment: Text.AlignVCenter
+            }
+            background: Rectangle {
+                radius: 4
+                color: parent.hovered ? "#1f2438" : root.cSurface
+                border.color: root.cBorder
+            }
+            onClicked: settingsDialog.visible = true
+        }
+
         Rectangle {
             anchors.centerIn: parent
             width: 320
@@ -623,7 +645,7 @@ Window {
                 id: specCanvas
                 anchors.fill: parent
                 opacity: 0.16
-                visible: audioEngine.isPlaying
+                visible: settingsStore.showSpectrogram && audioEngine.isPlaying
 
                 Connections {
                     target: audioEngine
@@ -671,7 +693,7 @@ Window {
                         source: library.currentCoverUrl
                         fillMode: Image.PreserveAspectCrop
                         opacity: 0.12
-                        visible: library.currentCoverUrl !== ""
+                        visible: settingsStore.showCoverGlow && library.currentCoverUrl !== ""
                     }
 
                     Row {
@@ -1112,7 +1134,7 @@ Window {
                                 var h = height
                                 var progress = progressSlider.visualPosition
 
-                                if (!peaks || peaks.length === 0) {
+                                if (!settingsStore.showWaveform || !peaks || peaks.length === 0) {
                                     ctx.fillStyle = "#181a26"
                                     ctx.fillRect(0, h / 2 - 2, w, 4)
                                     ctx.fillStyle = root.cAccent
@@ -1659,5 +1681,8 @@ Window {
                 }
             }
         }
+    }
+    SettingsDialog {
+        id: settingsDialog
     }
 }

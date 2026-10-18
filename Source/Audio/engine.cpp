@@ -396,16 +396,25 @@ void Engine::play(const QString& filePath) {
     emit positionChanged();
 }
 
+void Engine::setFpsCap(int fps) {
+    const int clampedFps = std::clamp(fps, 15, 144);
+    m_tickTimer.setInterval(1000 / clampedFps);
+}
+
 void Engine::stopWithReturn() {
     if (!m_soundLoaded) {
         return;
     }
 
     if (m_isPlaying) {
-        seek(m_playbackStartSec);
+        if (m_flStudioMode) {
+            seek(m_playbackStartSec);
+        }
         pause();
     } else {
-        m_playbackStartSec = position();
+        if (m_flStudioMode) {
+            m_playbackStartSec = position();
+        }
         ma_sound_start(m_sound);
         m_isPlaying = true;
         m_tickTimer.start();

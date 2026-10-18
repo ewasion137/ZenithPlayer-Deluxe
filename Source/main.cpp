@@ -50,8 +50,20 @@ int main(int argc, char* argv[]) {
     Network::DiscordRPC discordRPC;
     Utils::GlobalHotkeys globalHotkeys;
 
+    // Синхронизация тумблеров настроек со звуковым движком и сервисами
+    audioEngine.setFlStudioMode(settingsStore.flStudioMode());
+    audioEngine.setFpsCap(settingsStore.spectrogramFps());
+
+    QObject::connect(&settingsStore, &Core::Settings::appSettingsChanged, [&]() {
+        audioEngine.setFlStudioMode(settingsStore.flStudioMode());
+        audioEngine.setFpsCap(settingsStore.spectrogramFps());
+        if (!settingsStore.enableDiscordRpc()) {
+            discordRPC.clearActivity();
+        }
+    });
+
     auto syncDiscordActivity = [&]() {
-        if (!discordRPC.isConnected()) return;
+        if (!settingsStore.enableDiscordRpc() || !discordRPC.isConnected()) return;
         if (library.currentTrackPath().isEmpty()) {
             discordRPC.clearActivity();
             return;
@@ -73,19 +85,32 @@ int main(int argc, char* argv[]) {
     QObject::connect(&audioEngine, &Audio::Engine::speedChanged, syncDiscordActivity);
     QObject::connect(&library, &Player::Library::currentTrackPathChanged, syncDiscordActivity);
 
-    // Автоподключение сохраненного ID при старте
+    // Автоподключение сохраненного Discord Client ID при старте
     const QString savedId = settingsStore.getDiscordClientId();
-    if (!savedId.isEmpty()) {
+    if (!savedId.isEmpty() && settingsStore.enableDiscordRpc()) {
         discordRPC.setClientId(savedId);
         discordRPC.connectRpc(savedId);
     }
 
-    // Хоткеи
+    // Автопереход на следующий трек с проверкой настройки autoAdvance
+    QObject::connect(&audioEngine, &Audio::Engine::trackEnded, [&]() {
+        if (!settingsStore.autoAdvance()) return;
+        const QString next = library.getNextTrack();
+        if (!next.isEmpty()) {
+            library.setCurrentTrackPath(next);
+            audioEngine.play(next);
+        }
+    });
+
+    // Глобальные хоткеи Windows с проверкой флага globalHotkeys
     QObject::connect(&globalHotkeys, &Utils::GlobalHotkeys::playPauseTriggered, [&]() {
-        audioEngine.togglePlayPause();
+        if (settingsStore.globalHotkeys()) {
+            audioEngine.togglePlayPause();
+        }
     });
 
     QObject::connect(&globalHotkeys, &Utils::GlobalHotkeys::nextTriggered, [&]() {
+        if (!settingsStore.globalHotkeys()) return;
         const QString next = library.getNextTrack();
         if (!next.isEmpty()) {
             library.setCurrentTrackPath(next);
@@ -94,6 +119,7 @@ int main(int argc, char* argv[]) {
     });
 
     QObject::connect(&globalHotkeys, &Utils::GlobalHotkeys::prevTriggered, [&]() {
+        if (!settingsStore.globalHotkeys()) return;
         if (audioEngine.position() > 3.0) {
             audioEngine.seek(0.0);
         } else {
@@ -105,14 +131,7 @@ int main(int argc, char* argv[]) {
         }
     });
 
-    QObject::connect(&audioEngine, &Audio::Engine::trackEnded, [&]() {
-        const QString next = library.getNextTrack();
-        if (!next.isEmpty()) {
-            library.setCurrentTrackPath(next);
-            audioEngine.play(next);
-        }
-    });
-
+    // Обработка готовности сетевого стрима с YouTube
     QObject::connect(&streamManager, &Network::StreamManager::streamReady,
                      [&](const QString& filePath, const QString& title, const QString& artist, const QString& coverPath, const QString& originalUrl, const QString& remoteCoverUrl) {
         settingsStore.addWebTrack(filePath, originalUrl, title, artist, remoteCoverUrl);

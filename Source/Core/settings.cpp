@@ -79,6 +79,82 @@ void Settings::persistWebTracks() {
     }
 }
 
+bool Settings::getBoolSetting(const QString& key, bool defaultVal) const {
+    const QJsonObject config = m_data.value("app_config").toObject();
+    if (config.contains(key)) {
+        return config.value(key).toBool(defaultVal);
+    }
+    return defaultVal;
+}
+
+void Settings::setBoolSetting(const QString& key, bool val) {
+    QJsonObject config = m_data.value("app_config").toObject();
+    if (!config.contains(key) || config.value(key).toBool() != val) {
+        config[key] = val;
+        m_data["app_config"] = config;
+        persist();
+        emit appSettingsChanged();
+    }
+}
+
+int Settings::spectrogramFps() const {
+    const QJsonObject config = m_data.value("app_config").toObject();
+    return config.value("spectrogram_fps").toInt(60);
+}
+
+void Settings::setSpectrogramFps(int fps) {
+    QJsonObject config = m_data.value("app_config").toObject();
+    if (config.value("spectrogram_fps").toInt() != fps) {
+        config["spectrogram_fps"] = fps;
+        m_data["app_config"] = config;
+        persist();
+        emit appSettingsChanged();
+    }
+}
+
+void Settings::clearAllTrackSettings() {
+    QJsonObject cleaned;
+    if (m_data.contains("app_config")) {
+        cleaned["app_config"] = m_data["app_config"];
+    }
+    if (m_data.contains("discord_client_id")) {
+        cleaned["discord_client_id"] = m_data["discord_client_id"];
+    }
+    m_data = cleaned;
+    persist();
+    emit settingsSaved();
+}
+
+bool Settings::flStudioMode() const { return getBoolSetting("fl_studio_mode", true); }
+void Settings::setFlStudioMode(bool val) { setBoolSetting("fl_studio_mode", val); }
+
+bool Settings::smoothFade() const { return getBoolSetting("smooth_fade", true); }
+void Settings::setSmoothFade(bool val) { setBoolSetting("smooth_fade", val); }
+
+bool Settings::declickSeek() const { return getBoolSetting("declick_seek", true); }
+void Settings::setDeclickSeek(bool val) { setBoolSetting("declick_seek", val); }
+
+bool Settings::autoAdvance() const { return getBoolSetting("auto_advance", true); }
+void Settings::setAutoAdvance(bool val) { setBoolSetting("auto_advance", val); }
+
+bool Settings::showSpectrogram() const { return getBoolSetting("show_spectrogram", true); }
+void Settings::setShowSpectrogram(bool val) { setBoolSetting("show_spectrogram", val); }
+
+bool Settings::showWaveform() const { return getBoolSetting("show_waveform", true); }
+void Settings::setShowWaveform(bool val) { setBoolSetting("show_waveform", val); }
+
+bool Settings::showCoverGlow() const { return getBoolSetting("show_cover_glow", true); }
+void Settings::setShowCoverGlow(bool val) { setBoolSetting("show_cover_glow", val); }
+
+bool Settings::enableDiscordRpc() const { return getBoolSetting("enable_discord_rpc", true); }
+void Settings::setEnableDiscordRpc(bool val) { setBoolSetting("enable_discord_rpc", val); }
+
+bool Settings::globalHotkeys() const { return getBoolSetting("global_hotkeys", true); }
+void Settings::setGlobalHotkeys(bool val) { setBoolSetting("global_hotkeys", val); }
+
+bool Settings::autoSaveTracks() const { return getBoolSetting("auto_save_tracks", true); }
+void Settings::setAutoSaveTracks(bool val) { setBoolSetting("auto_save_tracks", val); }
+
 QVariantList Settings::webTracks() const {
     return m_webTracks.toVariantList();
 }
@@ -92,7 +168,7 @@ QVariantMap Settings::getTrackSettings(const QString& path) {
 }
 
 void Settings::saveTrackSettings(const QString& path, float volume, float speed, const QVariantList& eq) {
-    if (path.isEmpty()) return;
+    if (path.isEmpty() || !autoSaveTracks()) return;
 
     QJsonObject trackObj;
     trackObj["volume"] = volume;
@@ -127,7 +203,6 @@ void Settings::setDiscordClientId(const QString& id) {
 void Settings::addWebTrack(const QString& id, const QString& url, const QString& name, const QString& artist, const QString& picture) {
     for (int i = 0; i < m_webTracks.size(); ++i) {
         if (m_webTracks[i].toObject()["url"].toString() == url) {
-            // Track already exists: keep its chronological position
             return;
         }
     }
