@@ -71,9 +71,15 @@ bool Security::validateImageBytes(const QByteArray& data) {
 }
 
 QString Security::sanitizeString(const QString& input) {
-    QString out = input;
-    out.replace(QRegularExpression(R"([\u202A-\u202E\u2066-\u2069])"), "");
+    QString out;
+    out.reserve(input.size());
+    for (const QChar& c : input) {
+        const ushort u = c.unicode();
+        // Исключаем RLO, LRO, PDF и скрытые управляющие directional-символы Unicode
+        if (!((u >= 0x202A && u <= 0x202E) || (u >= 0x2066 && u <= 0x2069))) {
+            out.append(c);
+        }
+    }
     return out.trimmed();
 }
-
 } // namespace Theme

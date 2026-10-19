@@ -21,9 +21,137 @@ Window {
     readonly property color cTextMain: themeManager.textMain
     readonly property color cTextDim: themeManager.textDim
     readonly property color cBorder: themeManager.border
+    readonly property string cFont: themeManager.fontFamily !== "" ? themeManager.fontFamily : "Segoe UI"
 
     readonly property var eqLabels: ["60", "170", "350", "1k", "3.5k", "10k", "14k"]
     property real sidebarWidth: 320
+
+    component ThemeAnimator: Item {
+        id: animHost
+        property Item targetItem: parent
+        property string targetName: ""
+        property bool isHovered: false
+        property bool isPlaying: audioEngine.isPlaying
+        property var dynamicAnims: []
+
+        Connections {
+            target: themeManager
+            function onThemeUpdated() { animHost.rebind() }
+        }
+
+        Component.onCompleted: rebind()
+
+        function rebind() {
+            for (var i = dynamicAnims.length - 1; i >= 0; i--) {
+                dynamicAnims[i].stop()
+                dynamicAnims[i].destroy()
+            }
+            dynamicAnims = []
+            if (targetName === "" || !targetItem) return
+
+            var anims = themeManager.getAnimationsForTarget(targetName)
+            for (var j = 0; j < anims.length; j++) {
+                build(anims[j])
+            }
+        }
+
+        function build(cfg) {
+            if (!targetItem || !cfg.property) return
+            var prop = cfg.property.trim()
+            var propLower = prop.toLowerCase()
+            var isColor = (propLower === "color" || propLower.indexOf("color") !== -1)
+            var duration = cfg.duration > 0 ? cfg.duration : 1000
+            var isLoop = cfg.loop === true
+            var trigger = cfg.trigger ? cfg.trigger.toLowerCase() : "none"
+            var fromVal = cfg.from
+            var toVal = cfg.to
+
+            var script = ""
+            if (isColor) {
+                script = `
+                    import QtQuick
+                    SequentialAnimation {
+                        loops: ${isLoop ? "Animation.Infinite" : "1"}
+                        ColorAnimation {
+                            target: targetItem
+                            property: "${prop}"
+                            from: "${fromVal}"
+                            to: "${toVal}"
+                            duration: ${Math.floor(duration / 2)}
+                            easing.type: Easing.InOutQuad
+                        }
+                        ColorAnimation {
+                            target: targetItem
+                            property: "${prop}"
+                            from: "${toVal}"
+                            to: "${fromVal}"
+                            duration: ${Math.floor(duration / 2)}
+                            easing.type: Easing.InOutQuad
+                        }
+                    }
+                `
+            } else if (propLower === "rotation" && isLoop) {
+                script = `
+                    import QtQuick
+                    NumberAnimation {
+                        target: targetItem
+                        property: "${prop}"
+                        from: ${Number(fromVal)}
+                        to: ${Number(toVal)}
+                        duration: ${duration}
+                        loops: Animation.Infinite
+                    }
+                `
+            } else {
+                var easingType = (propLower === "y" || propLower === "x") ? "Easing.OutBounce" : "Easing.InOutQuad"
+                script = `
+                    import QtQuick
+                    SequentialAnimation {
+                        loops: ${isLoop ? "Animation.Infinite" : "1"}
+                        NumberAnimation {
+                            target: targetItem
+                            property: "${prop}"
+                            from: ${Number(fromVal)}
+                            to: ${Number(toVal)}
+                            duration: ${Math.floor(duration / 2)}
+                            easing.type: ${easingType}
+                        }
+                        NumberAnimation {
+                            target: targetItem
+                            property: "${prop}"
+                            from: ${Number(toVal)}
+                            to: ${Number(fromVal)}
+                            duration: ${Math.floor(duration / 2)}
+                            easing.type: Easing.InOutQuad
+                        }
+                    }
+                `
+            }
+
+            try {
+                var obj = Qt.createQmlObject(script, animHost, "dyn_" + cfg.name + "_" + Math.random().toString(36).substring(7))
+                if (obj) {
+                    dynamicAnims.push(obj)
+                    if (trigger === "playing") {
+                        animHost.isPlayingChanged.connect(function() {
+                            if (animHost.isPlaying) obj.start()
+                            else obj.stop()
+                        })
+                        if (animHost.isPlaying) obj.start()
+                    } else if (trigger === "hover") {
+                        animHost.isHoveredChanged.connect(function() {
+                            if (animHost.isHovered) obj.start()
+                            else obj.stop()
+                        })
+                    } else {
+                        obj.start()
+                    }
+                }
+            } catch (e) {
+                console.warn("Theme animation build error:", e)
+            }
+        }
+    }
 
     function saveCurrentTrack() {
         if (library.currentTrackPath !== "") {
@@ -142,6 +270,8 @@ Window {
         color: "#0a0c14"
         z: 100
 
+        ThemeAnimator { targetItem: titleBar; targetName: "title_bar" }
+
         Text {
             id: titleLabel
             anchors.left: parent.left
@@ -149,16 +279,12 @@ Window {
             anchors.verticalCenter: parent.verticalCenter
             text: themeManager.textOverrides["window_title"] || "ZENITH PLAYER"
             color: root.cAccent
+            font.family: root.cFont
             font.pixelSize: 11
             font.bold: true
             font.letterSpacing: 2.0
 
-            SequentialAnimation on color {
-                running: themeManager.animations.length > 0
-                loops: Animation.Infinite
-                ColorAnimation { from: themeManager.accent; to: themeManager.accentSecondary; duration: 2500 }
-                ColorAnimation { from: themeManager.accentSecondary; to: themeManager.accent; duration: 2500 }
-            }
+            ThemeAnimator { targetItem: titleLabel; targetName: "title" }
         }
 
         Button {
@@ -168,9 +294,17 @@ Window {
             anchors.verticalCenter: parent.verticalCenter
             height: 24
             text: "🎮 " + (discordRPC.isConnected ? "RPC: ON" : "RPC")
+
+            ThemeAnimator {
+                targetItem: rpcBtn
+                targetName: "rpc_btn"
+                isHovered: rpcBtn.hovered
+            }
+
             contentItem: Text {
                 text: parent.text
                 color: discordRPC.isConnected ? "#10b981" : root.cTextDim
+                font.family: root.cFont
                 font.pixelSize: 10
                 font.bold: true
                 verticalAlignment: Text.AlignVCenter
@@ -190,9 +324,17 @@ Window {
             anchors.verticalCenter: parent.verticalCenter
             height: 24
             text: "⚙ Settings"
+
+            ThemeAnimator {
+                targetItem: settingsBtn
+                targetName: "settings_btn"
+                isHovered: settingsBtn.hovered
+            }
+
             contentItem: Text {
                 text: parent.text
                 color: root.cTextDim
+                font.family: root.cFont
                 font.pixelSize: 10
                 font.bold: true
                 verticalAlignment: Text.AlignVCenter
@@ -206,12 +348,15 @@ Window {
         }
 
         Rectangle {
+            id: searchContainer
             anchors.centerIn: parent
             width: 320
             height: 26
             color: root.cSurface
             radius: 13
             border.color: root.cBorder
+
+            ThemeAnimator { targetItem: searchContainer; targetName: "search_bar" }
 
             TextInput {
                 id: searchField
@@ -220,14 +365,18 @@ Window {
                 anchors.rightMargin: 12
                 verticalAlignment: TextInput.AlignVCenter
                 color: root.cTextMain
+                font.family: root.cFont
                 font.pixelSize: 11
                 selectByMouse: true
+
+                ThemeAnimator { targetItem: searchField; targetName: "search_input" }
 
                 Text {
                     anchors.fill: parent
                     verticalAlignment: Text.AlignVCenter
                     text: streamManager.isBusy ? streamManager.statusText : "Search library or paste YouTube/Spotify link..."
                     color: streamManager.isBusy ? root.cAccent : root.cTextDim
+                    font.family: root.cFont
                     font.pixelSize: 11
                     visible: parent.text === ""
                 }
@@ -250,12 +399,15 @@ Window {
             anchors.bottom: parent.bottom
 
             Button {
+                id: btnMin
                 width: 44
                 height: parent.height
                 text: "-"
+                ThemeAnimator { targetItem: btnMin; targetName: "btn_min"; isHovered: btnMin.hovered }
                 contentItem: Text {
                     text: parent.text
                     color: root.cTextDim
+                    font.family: root.cFont
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font.pixelSize: 14
@@ -265,33 +417,36 @@ Window {
             }
 
             Button {
+                id: btnMax
                 width: 44
                 height: parent.height
                 text: root.visibility === Window.Maximized ? "❐" : "□"
+                ThemeAnimator { targetItem: btnMax; targetName: "btn_max"; isHovered: btnMax.hovered }
                 contentItem: Text {
                     text: parent.text
                     color: root.cTextDim
+                    font.family: root.cFont
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font.pixelSize: 13
                 }
                 background: Rectangle { color: parent.hovered ? "#1f2438" : "transparent" }
                 onClicked: {
-                    if (root.visibility === Window.Maximized) {
-                        root.showNormal()
-                    } else {
-                        root.showMaximized()
-                    }
+                    if (root.visibility === Window.Maximized) root.showNormal()
+                    else root.showMaximized()
                 }
             }
 
             Button {
+                id: btnClose
                 width: 44
                 height: parent.height
                 text: "✕"
+                ThemeAnimator { targetItem: btnClose; targetName: "btn_close"; isHovered: btnClose.hovered }
                 contentItem: Text {
                     text: parent.text
                     color: root.cTextDim
+                    font.family: root.cFont
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     font.pixelSize: 12
@@ -325,11 +480,13 @@ Window {
         anchors.right: parent.right
 
         Image {
+            id: bgCustomImg
             anchors.fill: parent
             source: themeManager.bgImageUrl
             fillMode: Image.PreserveAspectCrop
             opacity: 0.18
             visible: themeManager.bgImageUrl !== ""
+            ThemeAnimator { targetItem: bgCustomImg; targetName: "background_image" }
         }
 
         Rectangle {
@@ -341,6 +498,8 @@ Window {
             color: root.cPanelBg
             border.color: root.cBorder
 
+            ThemeAnimator { targetItem: leftExplorer; targetName: "sidebar" }
+
             Item {
                 id: explorerHeader
                 anchors.top: parent.top
@@ -348,12 +507,15 @@ Window {
                 anchors.right: parent.right
                 height: 44
 
+                ThemeAnimator { targetItem: explorerHeader; targetName: "sidebar_header" }
+
                 Text {
                     anchors.left: parent.left
                     anchors.leftMargin: 16
                     anchors.verticalCenter: parent.verticalCenter
                     text: "LIBRARY"
                     color: root.cTextDim
+                    font.family: root.cFont
                     font.pixelSize: 10
                     font.bold: true
                     font.letterSpacing: 1.5
@@ -366,11 +528,14 @@ Window {
                     spacing: 6
 
                     Button {
+                        id: btnAddUrl
                         height: 26
                         text: "🔗 + URL"
+                        ThemeAnimator { targetItem: btnAddUrl; targetName: "btn_add_url"; isHovered: btnAddUrl.hovered }
                         contentItem: Text {
                             text: parent.text
                             color: root.cAccent
+                            font.family: root.cFont
                             font.pixelSize: 10
                             font.bold: true
                         }
@@ -383,11 +548,14 @@ Window {
                     }
 
                     Button {
+                        id: btnAddFolder
                         height: 26
                         text: "+ Folder"
+                        ThemeAnimator { targetItem: btnAddFolder; targetName: "btn_add_folder"; isHovered: btnAddFolder.hovered }
                         contentItem: Text {
                             text: parent.text
                             color: root.cTextMain
+                            font.family: root.cFont
                             font.pixelSize: 10
                             font.bold: true
                         }
@@ -413,6 +581,8 @@ Window {
                 spacing: 4
                 property var openFolders: ({})
 
+                ThemeAnimator { targetItem: folderListView; targetName: "folder_list" }
+
                 ScrollBar.vertical: ScrollBar {
                     active: true
                     width: 5
@@ -427,11 +597,14 @@ Window {
                     property bool isOpen: true
 
                     Rectangle {
+                        id: webHeaderBanner
                         width: parent.width
                         height: 28
                         radius: 4
                         color: root.cSurface
                         border.color: root.cAccent
+
+                        ThemeAnimator { targetItem: webHeaderBanner; targetName: "web_header" }
 
                         Row {
                             anchors.fill: parent
@@ -449,6 +622,7 @@ Window {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: "🌐 Online Streams (" + settingsStore.webTracks.length + ")"
                                 color: root.cAccent
+                                font.family: root.cFont
                                 font.pixelSize: 11
                                 font.bold: true
                             }
@@ -493,6 +667,7 @@ Window {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: "#" + (settingsStore.webTracks.length - index)
                                         color: root.cAccent
+                                        font.family: root.cFont
                                         font.pixelSize: 9
                                         font.bold: true
                                         width: 20
@@ -502,6 +677,7 @@ Window {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: modelData.artist + " - " + modelData.name
                                         color: webTrackRow.isSelected ? "#ffffff" : root.cTextDim
+                                        font.family: root.cFont
                                         font.pixelSize: 11
                                         elide: Text.ElideRight
                                         width: parent.width - 44
@@ -551,6 +727,7 @@ Window {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: folderGroupItem.folderData.folderName + " (" + folderGroupItem.folderData.tracks.length + ")"
                                 color: root.cTextMain
+                                font.family: root.cFont
                                 font.pixelSize: 11
                                 font.bold: true
                                 elide: Text.ElideRight
@@ -602,6 +779,7 @@ Window {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: trackItem.trackData.name
                                     color: trackItem.isSelected ? "#ffffff" : root.cTextDim
+                                    font.family: root.cFont
                                     font.pixelSize: 11
                                     elide: Text.ElideRight
                                 }
@@ -630,6 +808,12 @@ Window {
             width: 4
             color: splitterArea.containsMouse || splitterArea.drag.active ? root.cAccent : "transparent"
 
+            ThemeAnimator {
+                targetItem: sidebarSplitter
+                targetName: "splitter"
+                isHovered: splitterArea.containsMouse
+            }
+
             MouseArea {
                 id: splitterArea
                 anchors.fill: parent
@@ -655,12 +839,15 @@ Window {
             anchors.right: parent.right
             anchors.margins: 20
 
-            // Фоновая спектрограмма (GPU Canvas)
+            ThemeAnimator { targetItem: mainStage; targetName: "main_stage" }
+
             Canvas {
                 id: specCanvas
                 anchors.fill: parent
                 opacity: 0.16
                 visible: settingsStore.showSpectrogram && audioEngine.isPlaying
+
+                ThemeAnimator { targetItem: specCanvas; targetName: "spectrum" }
 
                 Connections {
                     target: audioEngine
@@ -696,6 +883,7 @@ Window {
                 spacing: 20
 
                 Rectangle {
+                    id: coverCard
                     width: parent.width
                     height: 210
                     radius: 14
@@ -703,12 +891,16 @@ Window {
                     border.color: root.cBorder
                     clip: true
 
+                    ThemeAnimator { targetItem: coverCard; targetName: "card_cover" }
+
                     Image {
+                        id: coverGlowImg
                         anchors.fill: parent
                         source: library.currentCoverUrl
                         fillMode: Image.PreserveAspectCrop
                         opacity: 0.12
                         visible: settingsStore.showCoverGlow && library.currentCoverUrl !== ""
+                        ThemeAnimator { targetItem: coverGlowImg; targetName: "cover_glow" }
                     }
 
                     Row {
@@ -717,12 +909,18 @@ Window {
                         spacing: 24
 
                         Rectangle {
+                            id: coverArtBox
                             width: 170
                             height: 170
                             radius: 10
                             color: root.cSurface
                             border.color: root.cBorder
                             clip: true
+
+                            ThemeAnimator {
+                                targetItem: coverArtBox
+                                targetName: "cover"
+                            }
 
                             Image {
                                 anchors.fill: parent
@@ -746,40 +944,52 @@ Window {
                             width: parent.width - 210
 
                             Text {
+                                id: trackTitleText
                                 text: library.currentTitle
                                 color: root.cTextMain
+                                font.family: root.cFont
                                 font.pixelSize: 24
                                 font.bold: true
                                 elide: Text.ElideRight
                                 width: parent.width
+                                ThemeAnimator { targetItem: trackTitleText; targetName: "track_title" }
                             }
 
                             Text {
+                                id: trackArtistText
                                 text: library.currentArtist + (library.currentAlbum !== "" ? " • " + library.currentAlbum : "")
                                 color: root.cAccent
+                                font.family: root.cFont
                                 font.pixelSize: 14
                                 font.bold: true
                                 elide: Text.ElideRight
                                 width: parent.width
+                                ThemeAnimator { targetItem: trackArtistText; targetName: "track_artist" }
                             }
 
                             Text {
+                                id: trackPathText
                                 text: library.currentTrackPath === "" ? "Ready to play" : library.currentTrackPath
                                 color: root.cTextDim
+                                font.family: root.cFont
                                 font.pixelSize: 11
                                 elide: Text.ElideMiddle
                                 width: parent.width
+                                ThemeAnimator { targetItem: trackPathText; targetName: "track_path" }
                             }
                         }
                     }
                 }
 
                 Rectangle {
+                    id: eqCard
                     width: parent.width
                     height: 210
                     radius: 14
                     color: root.cPanelBg
                     border.color: root.cBorder
+
+                    ThemeAnimator { targetItem: eqCard; targetName: "card_eq" }
 
                     Column {
                         anchors.fill: parent
@@ -787,27 +997,34 @@ Window {
                         spacing: 10
 
                         Item {
+                            id: eqHeader
                             width: parent.width
                             height: 24
+
+                            ThemeAnimator { targetItem: eqHeader; targetName: "eq_header" }
 
                             Text {
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: "GRAPHIC EQUALIZER (7-BAND DSP)"
                                 color: root.cTextDim
+                                font.family: root.cFont
                                 font.pixelSize: 11
                                 font.bold: true
                                 font.letterSpacing: 1.5
                             }
 
                             Button {
+                                id: eqResetBtn
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 height: 22
                                 text: "Flat / Reset"
+                                ThemeAnimator { targetItem: eqResetBtn; targetName: "eq_reset_btn"; isHovered: eqResetBtn.hovered }
                                 contentItem: Text {
                                     text: parent.text
                                     color: root.cTextDim
+                                    font.family: root.cFont
                                     font.pixelSize: 10
                                 }
                                 background: Rectangle {
@@ -831,16 +1048,26 @@ Window {
                                 model: 7
 
                                 delegate: Column {
+                                    id: eqBandColumn
                                     width: 48
                                     height: parent.height
                                     spacing: 4
+
+                                    ThemeAnimator {
+                                        targetItem: eqBandColumn
+                                        targetName: "eq_slider_" + index
+                                    }
+                                    ThemeAnimator {
+                                        targetItem: eqBandColumn
+                                        targetName: "eq_slider"
+                                    }
 
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: (audioEngine.eqGains[index] > 0 ? "+" : "") + audioEngine.eqGains[index].toFixed(1)
                                         color: audioEngine.eqGains[index] !== 0 ? root.cAccent : root.cTextDim
                                         font.pixelSize: 10
-                                        font.family: "monospace"
+                                        font.family: root.cFont
                                     }
 
                                     Slider {
@@ -900,6 +1127,7 @@ Window {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: root.eqLabels[index]
                                         color: root.cTextDim
+                                        font.family: root.cFont
                                         font.pixelSize: 10
                                         font.bold: true
                                     }
@@ -921,6 +1149,8 @@ Window {
         color: "#0c0e17"
         border.color: root.cBorder
 
+        ThemeAnimator { targetItem: bottomPlayerBar; targetName: "bottom_bar" }
+
         Row {
             anchors.left: parent.left
             anchors.leftMargin: 16
@@ -929,11 +1159,14 @@ Window {
             spacing: 12
 
             Rectangle {
+                id: bottomCoverBox
                 width: 48
                 height: 48
                 radius: 6
                 color: root.cSurface
                 clip: true
+
+                ThemeAnimator { targetItem: bottomCoverBox; targetName: "bottom_cover" }
 
                 Image {
                     anchors.fill: parent
@@ -957,20 +1190,26 @@ Window {
                 spacing: 3
 
                 Text {
+                    id: bottomTitleText
                     text: library.currentTitle
                     color: root.cTextMain
+                    font.family: root.cFont
                     font.pixelSize: 13
                     font.bold: true
                     elide: Text.ElideRight
                     width: parent.width
+                    ThemeAnimator { targetItem: bottomTitleText; targetName: "bottom_title" }
                 }
 
                 Text {
+                    id: bottomArtistText
                     text: library.currentArtist
                     color: root.cTextDim
+                    font.family: root.cFont
                     font.pixelSize: 11
                     elide: Text.ElideRight
                     width: parent.width
+                    ThemeAnimator { targetItem: bottomArtistText; targetName: "bottom_artist" }
                 }
             }
         }
@@ -985,12 +1224,15 @@ Window {
                 spacing: 16
 
                 Button {
+                    id: btnPrev
                     width: 32
                     height: 32
                     text: "⏮"
+                    ThemeAnimator { targetItem: btnPrev; targetName: "btn_prev"; isHovered: btnPrev.hovered }
                     contentItem: Text {
                         text: parent.text
                         color: root.cTextMain
+                        font.family: root.cFont
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         font.pixelSize: 13
@@ -1018,6 +1260,12 @@ Window {
                     height: 38
                     radius: 19
                     color: root.cAccent
+
+                    ThemeAnimator {
+                        targetItem: playPauseBtn
+                        targetName: "play_button"
+                        isHovered: playMouseArea.containsMouse
+                    }
 
                     Item {
                         anchors.centerIn: parent
@@ -1061,6 +1309,7 @@ Window {
                     }
 
                     MouseArea {
+                        id: playMouseArea
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
@@ -1069,12 +1318,15 @@ Window {
                 }
 
                 Button {
+                    id: btnNext
                     width: 32
                     height: 32
                     text: "⏭"
+                    ThemeAnimator { targetItem: btnNext; targetName: "btn_next"; isHovered: btnNext.hovered }
                     contentItem: Text {
                         text: parent.text
                         color: root.cTextMain
+                        font.family: root.cFont
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         font.pixelSize: 13
@@ -1098,11 +1350,13 @@ Window {
                 spacing: 8
 
                 Text {
+                    id: timePosText
                     text: audioEngine.formatTime(audioEngine.position)
                     color: root.cTextDim
                     font.pixelSize: 10
-                    font.family: "monospace"
+                    font.family: root.cFont
                     anchors.verticalCenter: parent.verticalCenter
+                    ThemeAnimator { targetItem: timePosText; targetName: "time_pos" }
                 }
 
                 Slider {
@@ -1112,6 +1366,8 @@ Window {
                     to: Math.max(0.1, audioEngine.duration)
                     value: pressed ? value : audioEngine.position
                     anchors.verticalCenter: parent.verticalCenter
+
+                    ThemeAnimator { targetItem: progressSlider; targetName: "progress_slider" }
 
                     onPressedChanged: {
                         if (!pressed) {
@@ -1124,7 +1380,6 @@ Window {
                         }
                     }
 
-                    // Вейвформа вместо плоской линии
                     background: Item {
                         x: progressSlider.leftPadding
                         y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
@@ -1134,6 +1389,8 @@ Window {
                         Canvas {
                             id: waveCanvas
                             anchors.fill: parent
+
+                            ThemeAnimator { targetItem: waveCanvas; targetName: "waveform" }
 
                             Connections {
                                 target: audioEngine
@@ -1178,21 +1435,25 @@ Window {
                     }
 
                     handle: Rectangle {
+                        id: progressHandle
                         x: progressSlider.leftPadding + progressSlider.visualPosition * (progressSlider.availableWidth - width)
                         y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
                         width: progressSlider.hovered || progressSlider.pressed ? 12 : 2
                         height: progressSlider.hovered || progressSlider.pressed ? 12 : 24
                         radius: progressSlider.hovered || progressSlider.pressed ? 6 : 1
                         color: "#ffffff"
+                        ThemeAnimator { targetItem: progressHandle; targetName: "progress_handle" }
                     }
                 }
 
                 Text {
+                    id: timeDurText
                     text: audioEngine.formatTime(audioEngine.duration)
                     color: root.cTextDim
                     font.pixelSize: 10
-                    font.family: "monospace"
+                    font.family: root.cFont
                     anchors.verticalCenter: parent.verticalCenter
+                    ThemeAnimator { targetItem: timeDurText; targetName: "time_dur" }
                 }
             }
         }
@@ -1207,11 +1468,14 @@ Window {
                 spacing: 8
 
                 Text {
+                    id: volLabel
                     text: "VOL"
                     color: root.cTextDim
+                    font.family: root.cFont
                     font.pixelSize: 10
                     font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
+                    ThemeAnimator { targetItem: volLabel; targetName: "vol_label" }
                 }
 
                 Slider {
@@ -1220,6 +1484,8 @@ Window {
                     from: 0.0
                     to: 2.0
                     stepSize: 0.01
+
+                    ThemeAnimator { targetItem: volSlider; targetName: "vol_slider" }
 
                     Binding {
                         target: volSlider
@@ -1261,6 +1527,7 @@ Window {
                 }
 
                 Rectangle {
+                    id: volInputBox
                     width: 44
                     height: 22
                     color: root.cSurface
@@ -1268,12 +1535,15 @@ Window {
                     border.color: volInput.activeFocus ? root.cAccent : root.cBorder
                     anchors.verticalCenter: parent.verticalCenter
 
+                    ThemeAnimator { targetItem: volInputBox; targetName: "vol_input" }
+
                     TextInput {
                         id: volInput
                         anchors.fill: parent
                         horizontalAlignment: TextInput.AlignHCenter
                         verticalAlignment: TextInput.AlignVCenter
                         color: root.cTextMain
+                        font.family: root.cFont
                         font.pixelSize: 10
                         font.bold: true
                         selectByMouse: true
@@ -1296,11 +1566,14 @@ Window {
                 spacing: 8
 
                 Text {
+                    id: spdLabel
                     text: "SPD"
                     color: root.cTextDim
+                    font.family: root.cFont
                     font.pixelSize: 10
                     font.bold: true
                     anchors.verticalCenter: parent.verticalCenter
+                    ThemeAnimator { targetItem: spdLabel; targetName: "spd_label" }
                 }
 
                 Slider {
@@ -1309,6 +1582,8 @@ Window {
                     from: 0.5
                     to: 2.0
                     stepSize: 0.01
+
+                    ThemeAnimator { targetItem: spdSlider; targetName: "spd_slider" }
 
                     Binding {
                         target: spdSlider
@@ -1350,6 +1625,7 @@ Window {
                 }
 
                 Rectangle {
+                    id: spdInputBox
                     width: 44
                     height: 22
                     color: root.cSurface
@@ -1357,12 +1633,15 @@ Window {
                     border.color: spdInput.activeFocus ? root.cAccent : root.cBorder
                     anchors.verticalCenter: parent.verticalCenter
 
+                    ThemeAnimator { targetItem: spdInputBox; targetName: "spd_input" }
+
                     TextInput {
                         id: spdInput
                         anchors.fill: parent
                         horizontalAlignment: TextInput.AlignHCenter
                         verticalAlignment: TextInput.AlignVCenter
                         color: root.cTextMain
+                        font.family: root.cFont
                         font.pixelSize: 10
                         font.bold: true
                         selectByMouse: true
@@ -1396,6 +1675,7 @@ Window {
         }
 
         Rectangle {
+            id: urlModalBox
             anchors.centerIn: parent
             width: 440
             height: 190
@@ -1403,6 +1683,8 @@ Window {
             color: root.cPanelBg
             border.color: root.cAccent
             border.width: 1
+
+            ThemeAnimator { targetItem: urlModalBox; targetName: "url_modal" }
 
             MouseArea { anchors.fill: parent }
 
@@ -1420,6 +1702,7 @@ Window {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "PLAY FROM WEB / YOUTUBE / SPOTIFY"
                         color: root.cTextMain
+                        font.family: root.cFont
                         font.pixelSize: 11
                         font.bold: true
                         font.letterSpacing: 1.0
@@ -1456,6 +1739,7 @@ Window {
                         anchors.rightMargin: 10
                         verticalAlignment: TextInput.AlignVCenter
                         color: root.cTextMain
+                        font.family: root.cFont
                         font.pixelSize: 12
                         selectByMouse: true
 
@@ -1464,6 +1748,7 @@ Window {
                             verticalAlignment: Text.AlignVCenter
                             text: "Paste YouTube / Spotify URL or song title..."
                             color: root.cTextDim
+                            font.family: root.cFont
                             font.pixelSize: 11
                             visible: parent.text === ""
                         }
@@ -1481,6 +1766,7 @@ Window {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Status: "
                         color: root.cTextDim
+                        font.family: root.cFont
                         font.pixelSize: 11
                     }
 
@@ -1488,6 +1774,7 @@ Window {
                         anchors.verticalCenter: parent.verticalCenter
                         text: streamManager.statusText
                         color: streamManager.isBusy ? root.cAccent : "#10b981"
+                        font.family: root.cFont
                         font.pixelSize: 11
                         font.bold: true
                         elide: Text.ElideRight
@@ -1502,7 +1789,7 @@ Window {
                     Button {
                         height: 30
                         text: "Cancel"
-                        contentItem: Text { text: parent.text; color: root.cTextDim; font.pixelSize: 11 }
+                        contentItem: Text { text: parent.text; color: root.cTextDim; font.family: root.cFont; font.pixelSize: 11 }
                         background: Rectangle { radius: 4; color: root.cSurface; border.color: root.cBorder }
                         onClicked: urlModal.visible = false
                     }
@@ -1516,6 +1803,7 @@ Window {
                         contentItem: Text {
                             text: parent.text
                             color: "#ffffff"
+                            font.family: root.cFont
                             font.pixelSize: 11
                             font.bold: true
                             horizontalAlignment: Text.AlignHCenter
@@ -1549,6 +1837,7 @@ Window {
         }
 
         Rectangle {
+            id: rpcModalBox
             anchors.centerIn: parent
             width: 440
             height: 210
@@ -1556,6 +1845,8 @@ Window {
             color: root.cPanelBg
             border.color: root.cAccent
             border.width: 1
+
+            ThemeAnimator { targetItem: rpcModalBox; targetName: "rpc_modal" }
 
             MouseArea { anchors.fill: parent }
 
@@ -1573,6 +1864,7 @@ Window {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "DISCORD RICH PRESENCE"
                         color: root.cTextMain
+                        font.family: root.cFont
                         font.pixelSize: 11
                         font.bold: true
                         font.letterSpacing: 1.0
@@ -1598,6 +1890,7 @@ Window {
                 Text {
                     text: "Application Client ID:"
                     color: root.cTextDim
+                    font.family: root.cFont
                     font.pixelSize: 10
                     font.bold: true
                 }
@@ -1616,6 +1909,7 @@ Window {
                         anchors.rightMargin: 10
                         verticalAlignment: TextInput.AlignVCenter
                         color: root.cTextMain
+                        font.family: root.cFont
                         font.pixelSize: 12
                         selectByMouse: true
                         text: discordRPC.clientId
@@ -1625,6 +1919,7 @@ Window {
                             verticalAlignment: Text.AlignVCenter
                             text: "Paste Discord Application Client ID..."
                             color: root.cTextDim
+                            font.family: root.cFont
                             font.pixelSize: 11
                             visible: parent.text === ""
                         }
@@ -1639,6 +1934,7 @@ Window {
                     Text {
                         text: "Status:"
                         color: root.cTextDim
+                        font.family: root.cFont
                         font.pixelSize: 11
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -1646,6 +1942,7 @@ Window {
                     Text {
                         text: discordRPC.statusText
                         color: discordRPC.isConnected ? "#10b981" : (discordRPC.statusText.indexOf("Connecting") !== -1 ? "#f59e0b" : "#ef4444")
+                        font.family: root.cFont
                         font.pixelSize: 11
                         font.bold: true
                         anchors.verticalCenter: parent.verticalCenter
@@ -1663,6 +1960,7 @@ Window {
                         contentItem: Text {
                             text: parent.text
                             color: discordRPC.isConnected ? root.cTextMain : root.cTextDim
+                            font.family: root.cFont
                             font.pixelSize: 11
                         }
                         background: Rectangle { radius: 4; color: root.cSurface; border.color: root.cBorder }
@@ -1676,6 +1974,7 @@ Window {
                         contentItem: Text {
                             text: parent.text
                             color: "#ffffff"
+                            font.family: root.cFont
                             font.pixelSize: 11
                             font.bold: true
                             horizontalAlignment: Text.AlignHCenter
@@ -1697,6 +1996,7 @@ Window {
             }
         }
     }
+
     SettingsDialog {
         id: settingsDialog
     }

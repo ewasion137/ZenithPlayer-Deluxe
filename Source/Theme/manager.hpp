@@ -61,6 +61,8 @@ public:
     Q_INVOKABLE void openThemesFolder();
     Q_INVOKABLE void refreshThemes();
     Q_INVOKABLE void applyTheme(const QString& name);
+    Q_INVOKABLE QVariantMap getAnimation(const QString& target, const QString& property) const;
+    Q_INVOKABLE QVariantList getAnimationsForTarget(const QString& target) const;
 
 signals:
     void availableThemesChanged();

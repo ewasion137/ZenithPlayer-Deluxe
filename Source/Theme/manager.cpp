@@ -228,4 +228,42 @@ void Manager::loadBgImage(const QString& pathOrUrl) {
     }
 }
 
+QVariantMap Manager::getAnimation(const QString& target, const QString& property) const {
+    for (const auto& a : m_activeDef.animations) {
+        if (a.target.compare(target, Qt::CaseInsensitive) == 0 &&
+            (property.isEmpty() || a.property.compare(property, Qt::CaseInsensitive) == 0)) {
+            QVariantMap obj;
+            obj["name"] = a.name;
+            obj["target"] = a.target;
+            obj["property"] = a.property;
+            obj["from"] = a.fromValue;
+            obj["to"] = a.toValue;
+            obj["duration"] = a.duration;
+            obj["loop"] = a.loop;
+            obj["trigger"] = a.trigger;
+            return obj;
+        }
+    }
+    return {};
+}
+
+QVariantList Manager::getAnimationsForTarget(const QString& target) const {
+    QVariantList list;
+    for (const auto& a : m_activeDef.animations) {
+        if (a.target.compare(target, Qt::CaseInsensitive) == 0) {
+            QVariantMap obj;
+            obj["name"] = a.name;
+            obj["target"] = a.target;
+            obj["property"] = a.property;
+            obj["from"] = a.fromValue;
+            obj["to"] = a.toValue;
+            obj["duration"] = a.duration;
+            obj["loop"] = a.loop;
+            obj["trigger"] = a.trigger;
+            list.append(obj);
+        }
+    }
+    return list;
+}
+
 } // namespace Theme
