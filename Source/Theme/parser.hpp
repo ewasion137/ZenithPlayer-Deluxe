@@ -24,6 +24,9 @@ struct ThemeAnimation {
     int duration{1000};
     bool loop{false};
     QString trigger{"none"}; // "none", "hover", "playing"
+    QString easing{"in-out-quad"};
+    QString direction{"alternate"}; // "alternate", "forward", "reverse"
+    int delay{0};
 };
 
 struct ThemeDefinition {

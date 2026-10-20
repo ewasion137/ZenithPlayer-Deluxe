@@ -8,6 +8,8 @@ Rectangle {
     visible: false
     z: 9999
 
+    readonly property string cFont: (typeof themeManager !== "undefined" && themeManager.fontFamily !== "") ? themeManager.fontFamily : "Segoe UI"
+
     MouseArea {
         anchors.fill: parent
         onClicked: dialogRoot.visible = false

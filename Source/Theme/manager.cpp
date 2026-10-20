@@ -6,6 +6,9 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QFont>
+#include <QFontDatabase>
+#include <QGuiApplication>
 #include <QNetworkReply>
 #include <QStandardPaths>
 #include <QUrl>
@@ -101,6 +104,63 @@ void Manager::createStarterThemes() {
             );
         }
     }
+
+    const QString linearPath = themesDirectory() + "/Linear_Deluxe.zss";
+    if (!QFile::exists(linearPath)) {
+        QFile file(linearPath);
+        if (file.open(QIODevice::WriteOnly)) {
+            file.write(
+                "#^ Author: Zenith Deluxe\n"
+                "#^ ThemeName: Linear Deluxe\n"
+                "#^ Version: 2.0\n"
+                "#^ Description: Raycast & Linear inspired hyper-fluid aesthetic with physics-based spring animations\n\n"
+                "@font \"Segoe UI\"\n\n"
+                "colors {\n"
+                "    bg_main: #090a0f;\n"
+                "    panel_bg: #11131c;\n"
+                "    surface: #181b28;\n"
+                "    accent: #8b5cf6;\n"
+                "    accent_secondary: #38bdf8;\n"
+                "    accent_glow: #6366f1;\n"
+                "    text_main: #f8fafc;\n"
+                "    text_dim: #79829c;\n"
+                "    border: #222638;\n"
+                "}\n\n"
+                "text {\n"
+                "    window_title: \"ZENITH // LINEAR DELUXE\";\n"
+                "}\n\n"
+                "animation title_chroma {\n"
+                "    target: \"title\";\n"
+                "    property: \"color\";\n"
+                "    from: \"#8b5cf6\";\n"
+                "    to: \"#38bdf8\";\n"
+                "    duration: 3500;\n"
+                "    loop: infinite;\n"
+                "    easing: in-out-quad;\n"
+                "}\n\n"
+                "animation vinyl_cover_spin {\n"
+                "    target: \"cover\";\n"
+                "    property: \"rotation\";\n"
+                "    from: 0;\n"
+                "    to: 360;\n"
+                "    duration: 6000;\n"
+                "    loop: infinite;\n"
+                "    direction: forward;\n"
+                "    trigger: playing;\n"
+                "    easing: linear;\n"
+                "}\n\n"
+                "animation play_btn_spring {\n"
+                "    target: \"play_button\";\n"
+                "    property: \"scale\";\n"
+                "    from: 1.0;\n"
+                "    to: 1.15;\n"
+                "    duration: 180;\n"
+                "    trigger: hover;\n"
+                "    easing: spring;\n"
+                "}\n"
+            );
+        }
+    }
 }
 
 QStringList Manager::availableThemes() const {
@@ -159,6 +219,9 @@ QVariantList Manager::animations() const {
         obj["duration"] = a.duration;
         obj["loop"] = a.loop;
         obj["trigger"] = a.trigger;
+        obj["easing"] = a.easing;
+        obj["direction"] = a.direction;
+        obj["delay"] = a.delay;
         list.append(obj);
     }
     return list;
@@ -183,6 +246,29 @@ void Manager::applyTheme(const QString& name) {
     m_activeDef = Parser::parseFile(filePath);
     m_currentTheme = name;
     m_localBgPath = "";
+
+    // Применение и регистрация шрифтов (включая локальные .ttf / .otf файлы)
+    if (!m_activeDef.fontFamily.isEmpty()) {
+        QString family = m_activeDef.fontFamily;
+        if (family.endsWith(".ttf", Qt::CaseInsensitive) || family.endsWith(".otf", Qt::CaseInsensitive)) {
+            QString fontFile = family;
+            if (!QFileInfo(fontFile).isAbsolute()) {
+                fontFile = themesDirectory() + "/" + family;
+            }
+            if (QFile::exists(fontFile)) {
+                const int id = QFontDatabase::addApplicationFont(fontFile);
+                if (id != -1) {
+                    const QStringList families = QFontDatabase::applicationFontFamilies(id);
+                    if (!families.isEmpty()) {
+                        family = families.first();
+                        m_activeDef.fontFamily = family;
+                    }
+                }
+            }
+        }
+        QFont f(family);
+        QGuiApplication::setFont(f);
+    }
 
     if (!m_activeDef.bgImage.isEmpty()) {
         loadBgImage(m_activeDef.bgImage);
@@ -241,6 +327,9 @@ QVariantMap Manager::getAnimation(const QString& target, const QString& property
             obj["duration"] = a.duration;
             obj["loop"] = a.loop;
             obj["trigger"] = a.trigger;
+            obj["easing"] = a.easing;
+            obj["direction"] = a.direction;
+            obj["delay"] = a.delay;
             return obj;
         }
     }
@@ -260,6 +349,9 @@ QVariantList Manager::getAnimationsForTarget(const QString& target) const {
             obj["duration"] = a.duration;
             obj["loop"] = a.loop;
             obj["trigger"] = a.trigger;
+            obj["easing"] = a.easing;
+            obj["direction"] = a.direction;
+            obj["delay"] = a.delay;
             list.append(obj);
         }
     }

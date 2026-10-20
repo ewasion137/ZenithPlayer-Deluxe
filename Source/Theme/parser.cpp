@@ -46,11 +46,14 @@ ThemeDefinition Parser::parse(const QString& content) {
                     theme.bgImage = rawUrl;
                 }
             }
-        } else if (line.startsWith("@font")) {
-            const QRegularExpression fontRegex(R"(@font\s*["']([^"']+)["'])");
+        } else if (line.startsWith("@font", Qt::CaseInsensitive) || line.startsWith("font", Qt::CaseInsensitive)) {
+            static const QRegularExpression fontRegex(
+                R"((?:@font(?:-family)?|font(?:-family)?)\s*:?\s*["']?([^"';\r\n]+)["']?)",
+                QRegularExpression::CaseInsensitiveOption
+            );
             const auto m = fontRegex.match(line);
             if (m.hasMatch()) {
-                theme.fontFamily = Security::sanitizeString(m.captured(1));
+                theme.fontFamily = Security::sanitizeString(m.captured(1).trimmed());
             }
         }
     }
@@ -128,6 +131,9 @@ ThemeDefinition Parser::parse(const QString& content) {
                 else if (k == "duration") anim.duration = v.toInt();
                 else if (k == "loop") anim.loop = (v.toLower() == "infinite" || v.toLower() == "true");
                 else if (k == "trigger") anim.trigger = v.toLower();
+                else if (k == "easing") anim.easing = v.toLower();
+                else if (k == "direction") anim.direction = v.toLower();
+                else if (k == "delay") anim.delay = v.toInt();
             }
         }
 
