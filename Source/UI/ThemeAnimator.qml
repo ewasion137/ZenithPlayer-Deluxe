@@ -100,6 +100,7 @@ Item {
 
         var defaultEasing = isColor ? "Easing.InOutQuad" : (trigger === "hover" ? "Easing.OutBack" : "Easing.InOutQuad")
         var easingStr = getEasingString(cfg.easing, defaultEasing)
+        var overshootStr = (easingStr === "Easing.OutBack") ? "easing.overshoot: 1.45" : ""
 
         var componentStr = ""
 
@@ -159,6 +160,7 @@ Item {
                             to: ${Number(toVal)}
                             duration: ${duration}
                             easing.type: ${easingStr}
+                            ${overshootStr}
                         }
                         NumberAnimation {
                             id: exitAnim
@@ -263,6 +265,7 @@ Item {
                                     to: ${Number(toVal)}
                                     duration: ${duration}
                                     easing.type: ${easingStr}
+                                    ${overshootStr}
                                 }
                             }
                             function start() { mainSeq.restart() }
@@ -286,6 +289,7 @@ Item {
                                     to: ${Number(toVal)}
                                     duration: ${Math.floor(duration / 2)}
                                     easing.type: ${easingStr}
+                                    ${overshootStr}
                                 }
                                 NumberAnimation {
                                     target: animBox.animTarget
@@ -294,6 +298,7 @@ Item {
                                     to: ${Number(fromVal)}
                                     duration: ${Math.floor(duration / 2)}
                                     easing.type: ${easingStr}
+                                    ${overshootStr}
                                 }
                             }
                             function start() { mainSeq.restart() }

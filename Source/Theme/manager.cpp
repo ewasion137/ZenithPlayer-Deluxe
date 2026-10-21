@@ -161,6 +161,63 @@ void Manager::createStarterThemes() {
             );
         }
     }
+
+    const QString hyprPath = themesDirectory() + "/Hyprland_Niri.zss";
+    if (!QFile::exists(hyprPath)) {
+        QFile file(hyprPath);
+        if (file.open(QIODevice::WriteOnly)) {
+            file.write(
+                "#^ Author: Zenith Deluxe\n"
+                "#^ ThemeName: Hyprland Niri\n"
+                "#^ Version: 3.0\n"
+                "#^ Description: Hyper-kinetic Wayland compositor aesthetic with spring curves\n\n"
+                "@font \"Consolas\"\n\n"
+                "colors {\n"
+                "    bg_main: #06070a;\n"
+                "    panel_bg: #0c0e14;\n"
+                "    surface: #141722;\n"
+                "    accent: #00f0ff;\n"
+                "    accent_secondary: #ff007f;\n"
+                "    accent_glow: #00f0ff;\n"
+                "    text_main: #f0f6fc;\n"
+                "    text_dim: #768390;\n"
+                "    border: #23293e;\n"
+                "}\n\n"
+                "text {\n"
+                "    window_title: \"ZENITH // HYPRLAND [NIRI-WORKSPACE-01]\";\n"
+                "}\n\n"
+                "animation title_chroma {\n"
+                "    target: \"title\";\n"
+                "    property: \"color\";\n"
+                "    from: \"#00f0ff\";\n"
+                "    to: \"#ff007f\";\n"
+                "    duration: 3000;\n"
+                "    loop: infinite;\n"
+                "    easing: in-out-quad;\n"
+                "}\n\n"
+                "animation play_pop {\n"
+                "    target: \"play_button\";\n"
+                "    property: \"scale\";\n"
+                "    from: 1.0;\n"
+                "    to: 1.20;\n"
+                "    duration: 160;\n"
+                "    trigger: hover;\n"
+                "    easing: spring;\n"
+                "}\n\n"
+                "animation vinyl_spin {\n"
+                "    target: \"cover\";\n"
+                "    property: \"rotation\";\n"
+                "    from: 0;\n"
+                "    to: 360;\n"
+                "    duration: 4500;\n"
+                "    loop: infinite;\n"
+                "    direction: forward;\n"
+                "    trigger: playing;\n"
+                "    easing: linear;\n"
+                "}\n"
+            );
+        }
+    }
 }
 
 QStringList Manager::availableThemes() const {
