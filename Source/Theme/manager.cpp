@@ -325,6 +325,8 @@ QVariantList Manager::animations() const {
         obj["easing"] = a.easing;
         obj["direction"] = a.direction;
         obj["delay"] = a.delay;
+        obj["overshoot"] = a.overshoot;
+        obj["bezier"] = a.bezier;
         list.append(obj);
     }
     return list;

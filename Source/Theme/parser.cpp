@@ -14,6 +14,11 @@ namespace Theme {
 
 namespace {
 
+static void instructionLimitHook(lua_State* L, lua_Debug* ar) {
+    Q_UNUSED(ar);
+    luaL_error(L, "Lua script instruction limit exceeded (freeze/loop detected)");
+}
+
 QString getStringField(lua_State* L, const char* key, const QString& def = "") {
     QString res = def;
     lua_pushstring(L, key);
@@ -63,11 +68,61 @@ QVariant getValueField(lua_State* L, const char* key) {
     return res;
 }
 
+QVariantList getListField(lua_State* L, const char* key) {
+    QVariantList list;
+    lua_pushstring(L, key);
+    if (lua_gettable(L, -2) == LUA_TTABLE) {
+        const int len = static_cast<int>(luaL_len(L, -1));
+        for (int i = 1; i <= len; ++i) {
+            lua_rawgeti(L, -1, i);
+            if (lua_isnumber(L, -1)) {
+                list.append(lua_tonumber(L, -1));
+            } else if (lua_isstring(L, -1)) {
+                list.append(QString::fromUtf8(lua_tostring(L, -1)));
+            }
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+    return list;
+}
+
+QVariantMap getMapField(lua_State* L, const char* key) {
+    QVariantMap map;
+    lua_pushstring(L, key);
+    if (lua_gettable(L, -2) == LUA_TTABLE) {
+        lua_pushnil(L);
+        while (lua_next(L, -2) != 0) {
+            if (lua_isstring(L, -2)) {
+                const QString k = QString::fromUtf8(lua_tostring(L, -2));
+                if (lua_isnumber(L, -1)) {
+                    map[k] = lua_tonumber(L, -1);
+                } else if (lua_isstring(L, -1)) {
+                    map[k] = QString::fromUtf8(lua_tostring(L, -1));
+                } else if (lua_isboolean(L, -1)) {
+                    map[k] = static_cast<bool>(lua_toboolean(L, -1));
+                } else if (lua_istable(L, -1)) {
+                    QVariantList subList;
+                    const int subLen = static_cast<int>(luaL_len(L, -1));
+                    for (int i = 1; i <= subLen; ++i) {
+                        lua_rawgeti(L, -1, i);
+                        subList.append(QString::fromUtf8(lua_tostring(L, -1)));
+                        lua_pop(L, 1);
+                    }
+                    map[k] = subList;
+                }
+            }
+            lua_pop(L, 1);
+        }
+    }
+    lua_pop(L, 1);
+    return map;
+}
+
 ThemeDefinition extractFromTable(lua_State* L) {
     ThemeDefinition theme;
     if (!lua_istable(L, -1)) return theme;
 
-    // 1. Meta / Header
     lua_pushstring(L, "meta");
     if (lua_gettable(L, -2) == LUA_TTABLE) {
         theme.header.themeName = Security::sanitizeString(getStringField(L, "name", "Default"));
@@ -77,24 +132,16 @@ ThemeDefinition extractFromTable(lua_State* L) {
     }
     lua_pop(L, 1);
 
-    if (theme.header.themeName == "Default") {
-        QString n = getStringField(L, "name", "");
-        if (!n.isEmpty()) theme.header.themeName = Security::sanitizeString(n);
-    }
-
-    // 2. Font
     QString font = getStringField(L, "font", "");
     if (font.isEmpty()) font = getStringField(L, "font_family", "");
     theme.fontFamily = Security::sanitizeString(font);
 
-    // 3. Background Image
     QString bg = getStringField(L, "bg_image", "");
     if (bg.isEmpty()) bg = getStringField(L, "bg", "");
     if (Security::isPathSafe(bg)) {
         theme.bgImage = bg;
     }
 
-    // 4. Colors
     lua_pushstring(L, "colors");
     if (lua_gettable(L, -2) == LUA_TTABLE) {
         lua_pushnil(L);
@@ -111,22 +158,19 @@ ThemeDefinition extractFromTable(lua_State* L) {
     }
     lua_pop(L, 1);
 
-    // 5. Geometry
     lua_pushstring(L, "geometry");
     if (lua_gettable(L, -2) == LUA_TTABLE) {
         lua_pushnil(L);
         while (lua_next(L, -2) != 0) {
             if (lua_isstring(L, -2) && lua_isnumber(L, -1)) {
                 QString key = QString::fromUtf8(lua_tostring(L, -2)).trimmed().toLower();
-                double val = lua_tonumber(L, -1);
-                theme.geometry[key] = val;
+                theme.geometry[key] = lua_tonumber(L, -1);
             }
             lua_pop(L, 1);
         }
     }
     lua_pop(L, 1);
 
-    // 6. Text Overrides
     lua_pushstring(L, "text");
     if (lua_gettable(L, -2) == LUA_TTABLE) {
         lua_pushnil(L);
@@ -141,7 +185,9 @@ ThemeDefinition extractFromTable(lua_State* L) {
     }
     lua_pop(L, 1);
 
-    // 7. Animations
+    theme.effects = getMapField(L, "effects");
+    theme.borders = getMapField(L, "borders");
+
     lua_pushstring(L, "animations");
     if (lua_gettable(L, -2) == LUA_TTABLE) {
         const int len = static_cast<int>(luaL_len(L, -1));
@@ -154,12 +200,14 @@ ThemeDefinition extractFromTable(lua_State* L) {
                 a.property = getStringField(L, "property", "");
                 a.fromValue = getValueField(L, "from");
                 a.toValue = getValueField(L, "to");
-                a.duration = static_cast<int>(getNumberField(L, "duration", 1000));
+                a.duration = static_cast<int>(getNumberField(L, "duration", 250));
                 a.loop = getBoolField(L, "loop", false);
                 a.trigger = getStringField(L, "trigger", "none").toLower();
                 a.easing = getStringField(L, "easing", "spring").toLower();
                 a.direction = getStringField(L, "direction", "alternate").toLower();
                 a.delay = static_cast<int>(getNumberField(L, "delay", 0));
+                a.overshoot = static_cast<float>(getNumberField(L, "overshoot", 1.45));
+                a.bezier = getListField(L, "bezier");
 
                 if (!a.target.isEmpty() && !a.property.isEmpty()) {
                     theme.animations.push_back(a);
@@ -175,26 +223,10 @@ ThemeDefinition extractFromTable(lua_State* L) {
 
 } // namespace
 
-ThemeDefinition Parser::parseFile(const QString& filePath) {
-    QFile file(filePath);
-    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning() << "Failed to open Lua theme file:" << filePath;
-        return {};
-    }
-    const QString script = QString::fromUtf8(file.readAll());
-    return parseScript(script);
-}
-// Добавьте эту функцию-хук перед parseScript
-static void instructionLimitHook(lua_State* L, lua_Debug* ar) {
-    Q_UNUSED(ar);
-    luaL_error(L, "Security violation: Lua script instruction limit exceeded (freeze/loop detected)");
-}
-
 ThemeDefinition Parser::parseScript(const QString& luaCode) {
     lua_State* L = luaL_newstate();
     if (!L) return {};
 
-    // 1. Подключаем строго изолированные безопасные библиотеки
     luaL_requiref(L, "_G", luaopen_base, 1);
     lua_pop(L, 1);
     luaL_requiref(L, LUA_TABLIBNAME, luaopen_table, 1);
@@ -204,7 +236,6 @@ ThemeDefinition Parser::parseScript(const QString& luaCode) {
     luaL_requiref(L, LUA_MATHLIBNAME, luaopen_math, 1);
     lua_pop(L, 1);
 
-    // 2. В базовой библиотеке все еще есть функции для выполнения файлов/кода. Вычищаем их:
     const char* dangerousGlobals[] = {
         "dofile", "loadfile", "load", "loadstring",
         "require", "module", "package", "io", "os", "debug",
@@ -215,7 +246,6 @@ ThemeDefinition Parser::parseScript(const QString& luaCode) {
         lua_setglobal(L, dangerousGlobals[i]);
     }
 
-    // 3. Защита от while true do end (максимум 250 000 виртуальных инструкций на тему)
     lua_sethook(L, instructionLimitHook, LUA_MASKCOUNT, 250000);
 
     if (luaL_dostring(L, luaCode.toUtf8().constData()) != LUA_OK) {
@@ -228,6 +258,14 @@ ThemeDefinition Parser::parseScript(const QString& luaCode) {
     ThemeDefinition theme = extractFromTable(L);
     lua_close(L);
     return theme;
+}
+
+ThemeDefinition Parser::parseFile(const QString& filePath) {
+    QFile file(filePath);
+    if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        return {};
+    }
+    return parseScript(QString::fromUtf8(file.readAll()));
 }
 
 } // namespace Theme

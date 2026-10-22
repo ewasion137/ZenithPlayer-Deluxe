@@ -783,35 +783,39 @@ Window {
                         spacing: 24
 
                         Rectangle {
-                            id: coverArtBox
-                            width: 170
-                            height: 170
-                            radius: 10
-                            color: root.cSurface
-                            border.color: root.cBorder
-                            clip: true
+    id: coverArtBox
+    width: 170
+    height: 170
+    radius: 10
+    color: root.cSurface
+    border.color: root.cBorder
+    clip: true
 
-                            ThemeAnimator {
-                                targetItem: coverArtBox
-                                targetName: "cover"
-                            }
+    Item {
+        id: coverSpinContainer
+        anchors.fill: parent
 
-                            Image {
-                                anchors.fill: parent
-                                source: library.currentCoverUrl
-                                fillMode: Image.PreserveAspectCrop
-                                visible: library.currentCoverUrl !== ""
-                            }
+        ThemeAnimator {
+            targetItem: coverSpinContainer
+            targetName: "cover"
+        }
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: "♪"
-                                color: root.cAccent
-                                font.pixelSize: 48
-                                visible: library.currentCoverUrl === ""
-                            }
-                        }
+        Image {
+            anchors.fill: parent
+            source: library.currentCoverUrl
+            fillMode: Image.PreserveAspectCrop
+            visible: library.currentCoverUrl !== ""
+        }
 
+        Text {
+            anchors.centerIn: parent
+            text: "♪"
+            color: root.cAccent
+            font.pixelSize: 48
+            visible: library.currentCoverUrl === ""
+        }
+    }
+}
                         Column {
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 8
@@ -922,90 +926,81 @@ Window {
                                 model: 7
 
                                 delegate: Column {
-                                    id: eqBandColumn
-                                    width: 48
-                                    height: parent.height
-                                    spacing: 4
+    id: eqBandColumn
+    width: 48
+    height: parent.height
+    spacing: 4
 
-                                    ThemeAnimator {
-                                        targetItem: eqBandColumn
-                                        targetName: "eq_slider_" + index
-                                    }
-                                    ThemeAnimator {
-                                        targetItem: eqBandColumn
-                                        targetName: "eq_slider"
-                                    }
+    Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        text: (audioEngine.eqGains[index] > 0 ? "+" : "") + audioEngine.eqGains[index].toFixed(1)
+        color: audioEngine.eqGains[index] !== 0 ? root.cAccent : root.cTextDim
+        font.pixelSize: 10
+        font.family: root.cFont
+    }
 
-                                    Text {
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        text: (audioEngine.eqGains[index] > 0 ? "+" : "") + audioEngine.eqGains[index].toFixed(1)
-                                        color: audioEngine.eqGains[index] !== 0 ? root.cAccent : root.cTextDim
-                                        font.pixelSize: 10
-                                        font.family: root.cFont
-                                    }
+    Slider {
+        id: eqSlider
+        anchors.horizontalCenter: parent.horizontalCenter
+        height: 96
+        orientation: Qt.Vertical
+        from: -12.0
+        to: 12.0
+        stepSize: 0.1
 
-                                    Slider {
-                                        id: eqSlider
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        height: 96
-                                        orientation: Qt.Vertical
-                                        from: -12.0
-                                        to: 12.0
-                                        stepSize: 0.1
+        Binding {
+            target: eqSlider
+            property: "value"
+            value: audioEngine.eqGains[index]
+            when: !eqSlider.pressed
+        }
 
-                                        Binding {
-                                            target: eqSlider
-                                            property: "value"
-                                            value: audioEngine.eqGains[index]
-                                            when: !eqSlider.pressed
-                                        }
+        onMoved: {
+            audioEngine.setEqGain(index, value)
+            root.saveCurrentTrack()
+        }
 
-                                        onMoved: {
-                                            audioEngine.setEqGain(index, value)
-                                            root.saveCurrentTrack()
-                                        }
+        background: Rectangle {
+            x: eqSlider.leftPadding + eqSlider.availableWidth / 2 - width / 2
+            y: eqSlider.topPadding
+            width: eqSlider.pressed ? 8 : (eqSlider.hovered ? 6 : 4)
+            height: eqSlider.availableHeight
+            radius: width / 2
+            color: "#181a26"
+            Behavior on width { NumberAnimation { duration: 140; easing.type: Easing.OutBack } }
 
-                                        background: Rectangle {
-                                            x: eqSlider.leftPadding + eqSlider.availableWidth / 2 - width / 2
-                                            y: eqSlider.topPadding
-                                            implicitWidth: 6
-                                            implicitHeight: 96
-                                            width: implicitWidth
-                                            height: eqSlider.availableHeight
-                                            radius: 3
-                                            color: "#181a26"
+            Rectangle {
+                x: 0
+                width: parent.width
+                y: eqSlider.position >= 0.5 ? (1.0 - eqSlider.position) * parent.height : parent.height / 2
+                height: Math.abs(eqSlider.position - 0.5) * parent.height
+                color: root.cAccent
+                radius: parent.radius
+            }
+        }
 
-                                            Rectangle {
-                                                x: 0
-                                                width: parent.width
-                                                y: eqSlider.position >= 0.5 ? (1.0 - eqSlider.position) * parent.height : parent.height / 2
-                                                height: Math.abs(eqSlider.position - 0.5) * parent.height
-                                                color: root.cAccent
-                                                radius: 3
-                                            }
-                                        }
+        handle: Rectangle {
+            x: eqSlider.leftPadding + eqSlider.availableWidth / 2 - width / 2
+            y: eqSlider.topPadding + (1.0 - eqSlider.position) * (eqSlider.availableHeight - height)
+            width: eqSlider.pressed ? 22 : (eqSlider.hovered ? 20 : 16)
+            height: eqSlider.pressed ? 12 : 10
+            radius: 3
+            color: eqSlider.pressed ? "#ffffff" : root.cAccent
+            border.color: "#ffffff"
+            border.width: 1
+            Behavior on width { NumberAnimation { duration: 140; easing.type: Easing.OutBack } }
+        }
+    }
 
-                                        handle: Rectangle {
-                                            x: eqSlider.leftPadding + eqSlider.availableWidth / 2 - width / 2
-                                            y: eqSlider.topPadding + (1.0 - eqSlider.position) * (eqSlider.availableHeight - height)
-                                            implicitWidth: 18
-                                            implicitHeight: 10
-                                            radius: 3
-                                            color: eqSlider.pressed ? "#ffffff" : root.cAccent
-                                            border.color: "#ffffff"
-                                            border.width: 1
-                                        }
-                                    }
-
-                                    Text {
-                                        anchors.horizontalCenter: parent.horizontalCenter
-                                        text: root.eqLabels[index]
-                                        color: root.cTextDim
-                                        font.family: root.cFont
-                                        font.pixelSize: 10
-                                        font.bold: true
-                                    }
-                                }
+    Text {
+        anchors.horizontalCenter: parent.horizontalCenter
+        text: root.eqLabels[index]
+        color: root.cTextDim
+        font.family: root.cFont
+        font.pixelSize: 10
+        font.bold: true
+    }
+}
                             }
                         }
                     }
@@ -1234,91 +1229,98 @@ Window {
                 }
 
                 Slider {
-                    id: progressSlider
-                    width: parent.width - 80
-                    from: 0.0
-                    to: Math.max(0.1, audioEngine.duration)
-                    value: pressed ? value : audioEngine.position
-                    anchors.verticalCenter: parent.verticalCenter
+    id: progressSlider
+    width: parent.width - 80
+    from: 0.0
+    to: Math.max(0.1, audioEngine.duration)
+    value: pressed ? value : audioEngine.position
+    anchors.verticalCenter: parent.verticalCenter
 
-                    ThemeAnimator { targetItem: progressSlider; targetName: "progress_slider" }
+    ThemeAnimator {
+        targetItem: progressSlider
+        targetName: "progress_slider"
+        isHovered: progressSlider.hovered
+        isPressed: progressSlider.pressed
+        isDragging: progressSlider.pressed
+    }
 
-                    onPressedChanged: {
-                        if (!pressed) {
-                            audioEngine.seek(value)
-                        }
-                    }
-                    onMoved: {
-                        if (!pressed) {
-                            audioEngine.seek(value)
-                        }
-                    }
+    onPressedChanged: {
+        if (!pressed) audioEngine.seek(value)
+    }
+    onMoved: {
+        if (!pressed) audioEngine.seek(value)
+    }
 
-                    background: Item {
-                        x: progressSlider.leftPadding
-                        y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
-                        width: progressSlider.availableWidth
-                        height: 22
+    background: Item {
+        x: progressSlider.leftPadding
+        y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
+        width: progressSlider.availableWidth
+        height: progressSlider.pressed ? 30 : (progressSlider.hovered ? 26 : 22)
+        Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutBack; easing.overshoot: 1.4 } }
 
-                        Canvas {
-                            id: waveCanvas
-                            anchors.fill: parent
+        Canvas {
+            id: waveCanvas
+            anchors.fill: parent
 
-                            ThemeAnimator { targetItem: waveCanvas; targetName: "waveform" }
+            ThemeAnimator { targetItem: waveCanvas; targetName: "waveform" }
 
-                            Connections {
-                                target: audioEngine
-                                function onWaveformChanged() { waveCanvas.requestPaint() }
-                                function onPositionChanged() { waveCanvas.requestPaint() }
-                            }
+            Connections {
+                target: audioEngine
+                function onWaveformChanged() { waveCanvas.requestPaint() }
+                function onPositionChanged() { waveCanvas.requestPaint() }
+            }
 
-                            onPaint: {
-                                var ctx = getContext("2d")
-                                ctx.reset()
-                                var peaks = audioEngine.waveform
-                                var w = width
-                                var h = height
-                                var progress = progressSlider.visualPosition
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.reset()
+                var peaks = audioEngine.waveform
+                var w = width
+                var h = height
+                var progress = progressSlider.visualPosition
 
-                                if (!settingsStore.showWaveform || !peaks || peaks.length === 0) {
-                                    ctx.fillStyle = "#181a26"
-                                    ctx.fillRect(0, h / 2 - 2, w, 4)
-                                    ctx.fillStyle = root.cAccent
-                                    ctx.fillRect(0, h / 2 - 2, progress * w, 4)
-                                    return
-                                }
-
-                                var count = peaks.length
-                                var barW = (w / count) - 1.2
-                                var progressX = progress * w
-
-                                for (var i = 0; i < count; i++) {
-                                    var x = i * (barW + 1.2)
-                                    var barH = Math.max(2, peaks[i] * (h - 2))
-                                    var y = (h - barH) / 2
-
-                                    if (x <= progressX) {
-                                        ctx.fillStyle = root.cAccent
-                                    } else {
-                                        ctx.fillStyle = "#222638"
-                                    }
-                                    ctx.fillRect(x, y, Math.max(1, barW), barH)
-                                }
-                            }
-                        }
-                    }
-
-                    handle: Rectangle {
-                        id: progressHandle
-                        x: progressSlider.leftPadding + progressSlider.visualPosition * (progressSlider.availableWidth - width)
-                        y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
-                        width: progressSlider.hovered || progressSlider.pressed ? 12 : 2
-                        height: progressSlider.hovered || progressSlider.pressed ? 12 : 24
-                        radius: progressSlider.hovered || progressSlider.pressed ? 6 : 1
-                        color: "#ffffff"
-                        ThemeAnimator { targetItem: progressHandle; targetName: "progress_handle" }
-                    }
+                if (!settingsStore.showWaveform || !peaks || peaks.length === 0) {
+                    ctx.fillStyle = "#181a26"
+                    ctx.fillRect(0, h / 2 - (progressSlider.pressed ? 4 : 2), w, progressSlider.pressed ? 8 : 4)
+                    ctx.fillStyle = root.cAccent
+                    ctx.fillRect(0, h / 2 - (progressSlider.pressed ? 4 : 2), progress * w, progressSlider.pressed ? 8 : 4)
+                    return
                 }
+
+                var count = peaks.length
+                var barW = (w / count) - 1.2
+                var progressX = progress * w
+
+                for (var i = 0; i < count; i++) {
+                    var x = i * (barW + 1.2)
+                    var barH = Math.max(2, peaks[i] * (h - 2))
+                    var y = (h - barH) / 2
+
+                    ctx.fillStyle = (x <= progressX) ? root.cAccent : "#222638"
+                    ctx.fillRect(x, y, Math.max(1, barW), barH)
+                }
+            }
+        }
+    }
+
+    handle: Rectangle {
+        id: progressHandle
+        x: progressSlider.leftPadding + progressSlider.visualPosition * (progressSlider.availableWidth - width)
+        y: progressSlider.topPadding + progressSlider.availableHeight / 2 - height / 2
+        width: progressSlider.pressed ? 16 : (progressSlider.hovered ? 14 : 3)
+        height: progressSlider.pressed ? 16 : (progressSlider.hovered ? 14 : 24)
+        radius: progressSlider.hovered || progressSlider.pressed ? 8 : 1.5
+        color: "#ffffff"
+        Behavior on width { NumberAnimation { duration: 140; easing.type: Easing.OutBack } }
+        Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutBack } }
+
+        ThemeAnimator {
+            targetItem: progressHandle
+            targetName: "progress_handle"
+            isHovered: progressSlider.hovered
+            isPressed: progressSlider.pressed
+        }
+    }
+}
 
                 Text {
                     id: timeDurText
@@ -1353,52 +1355,60 @@ Window {
                 }
 
                 Slider {
-                    id: volSlider
-                    width: 160
-                    from: 0.0
-                    to: 2.0
-                    stepSize: 0.01
+    id: volSlider
+    width: 160
+    from: 0.0
+    to: 2.0
+    stepSize: 0.01
+    anchors.verticalCenter: parent.verticalCenter
 
-                    ThemeAnimator { targetItem: volSlider; targetName: "vol_slider" }
+    ThemeAnimator {
+        targetItem: volSlider
+        targetName: "vol_slider"
+        isHovered: volSlider.hovered
+        isPressed: volSlider.pressed
+        isDragging: volSlider.pressed
+    }
 
-                    Binding {
-                        target: volSlider
-                        property: "value"
-                        value: audioEngine.volume
-                        when: !volSlider.pressed
-                    }
+    Binding {
+        target: volSlider
+        property: "value"
+        value: audioEngine.volume
+        when: !volSlider.pressed
+    }
 
-                    anchors.verticalCenter: parent.verticalCenter
-                    onMoved: {
-                        audioEngine.setVolume(value)
-                        root.saveCurrentTrack()
-                    }
+    onMoved: {
+        audioEngine.setVolume(value)
+        root.saveCurrentTrack()
+    }
 
-                    background: Rectangle {
-                        x: volSlider.leftPadding
-                        y: volSlider.topPadding + volSlider.availableHeight / 2 - height / 2
-                        width: volSlider.availableWidth
-                        height: 5
-                        radius: 2.5
-                        color: "#181a26"
+    background: Rectangle {
+        x: volSlider.leftPadding
+        y: volSlider.topPadding + volSlider.availableHeight / 2 - height / 2
+        width: volSlider.availableWidth
+        height: volSlider.pressed ? 10 : (volSlider.hovered ? 7 : 4)
+        radius: height / 2
+        color: "#181a26"
+        Behavior on height { NumberAnimation { duration: 140; easing.type: Easing.OutBack; easing.overshoot: 1.5 } }
 
-                        Rectangle {
-                            width: volSlider.visualPosition * parent.width
-                            height: parent.height
-                            color: root.cTextMain
-                            radius: 2.5
-                        }
-                    }
+        Rectangle {
+            width: volSlider.visualPosition * parent.width
+            height: parent.height
+            color: root.cTextMain
+            radius: parent.radius
+        }
+    }
 
-                    handle: Rectangle {
-                        x: volSlider.leftPadding + volSlider.visualPosition * (volSlider.availableWidth - width)
-                        y: volSlider.topPadding + volSlider.availableHeight / 2 - height / 2
-                        width: 14
-                        height: 14
-                        radius: 7
-                        color: "#ffffff"
-                    }
-                }
+    handle: Rectangle {
+        x: volSlider.leftPadding + volSlider.visualPosition * (volSlider.availableWidth - width)
+        y: volSlider.topPadding + volSlider.availableHeight / 2 - height / 2
+        width: volSlider.pressed ? 18 : (volSlider.hovered ? 16 : 12)
+        height: width
+        radius: width / 2
+        color: "#ffffff"
+        Behavior on width { NumberAnimation { duration: 140; easing.type: Easing.OutBack } }
+    }
+}
 
                 Rectangle {
                     id: volInputBox

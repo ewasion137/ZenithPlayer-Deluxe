@@ -17,16 +17,18 @@ struct ThemeHeader {
 
 struct ThemeAnimation {
     QString name;
-    QString target;     // e.g. "title", "play_button", "cover"
-    QString property;   // e.g. "color", "scale", "rotation", "opacity", "y", "x"
+    QString target;
+    QString property;
     QVariant fromValue;
     QVariant toValue;
-    int duration{1000};
+    int duration{250};
     bool loop{false};
-    QString trigger{"none"}; // "none", "hover", "playing"
+    QString trigger{"none"};
     QString easing{"spring"};
-    QString direction{"alternate"}; // "alternate", "forward", "reverse"
+    QString direction{"alternate"};
     int delay{0};
+    float overshoot{1.45f};
+    QVariantList bezier;
 };
 
 struct ThemeDefinition {
@@ -37,6 +39,8 @@ struct ThemeDefinition {
     QMap<QString, QColor> colors;
     QMap<QString, double> geometry;
     QMap<QString, QString> textOverrides;
+    QVariantMap effects;
+    QVariantMap borders;
     std::vector<ThemeAnimation> animations;
 };
 

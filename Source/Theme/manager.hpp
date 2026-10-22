@@ -35,6 +35,8 @@ class Manager : public QObject {
     Q_PROPERTY(QVariantMap textOverrides READ textOverrides NOTIFY themeUpdated)
     Q_PROPERTY(QVariantMap geometryOverrides READ geometryOverrides NOTIFY themeUpdated)
     Q_PROPERTY(QVariantList animations READ animations NOTIFY themeUpdated)
+    Q_PROPERTY(QVariantMap effects READ effects NOTIFY themeUpdated)
+    Q_PROPERTY(QVariantMap borders READ borders NOTIFY themeUpdated)
 
 public:
     explicit Manager(Core::Settings* settings, QObject* parent = nullptr);
@@ -63,6 +65,8 @@ public:
     Q_INVOKABLE void applyTheme(const QString& name);
     Q_INVOKABLE QVariantMap getAnimation(const QString& target, const QString& property) const;
     Q_INVOKABLE QVariantList getAnimationsForTarget(const QString& target) const;
+    QVariantMap effects() const { return m_activeDef.effects; }
+    QVariantMap borders() const { return m_activeDef.borders; }
 
 signals:
     void availableThemesChanged();
