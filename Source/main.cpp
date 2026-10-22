@@ -145,6 +145,9 @@ int main(int argc, char* argv[]) {
     engine.addImageProvider("covers", new CoverProvider(&library));
     Theme::Manager themeManager(&settingsStore);
     
+    qRegisterMetaType<Theme::Manager*>("Theme::Manager*");
+    qmlRegisterSingletonInstance("Theme", 1, 0, "ThemeManager", &themeManager);
+
     engine.rootContext()->setContextProperty("themeManager", &themeManager);
     engine.rootContext()->setContextProperty("library", &library);
     engine.rootContext()->setContextProperty("audioEngine", &audioEngine);

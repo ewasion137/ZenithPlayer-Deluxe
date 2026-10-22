@@ -13,15 +13,15 @@ Window {
     color: "#08090d"
     flags: Qt.Window | Qt.FramelessWindowHint
 
-    readonly property color cBgMain: themeManager.bgMain
-    readonly property color cPanelBg: themeManager.panelBg
-    readonly property color cSurface: themeManager.surface
-    readonly property color cAccent: themeManager.accent
-    readonly property color cAccentGlow: themeManager.accentGlow
-    readonly property color cTextMain: themeManager.textMain
-    readonly property color cTextDim: themeManager.textDim
-    readonly property color cBorder: themeManager.border
-    readonly property string cFont: themeManager.fontFamily !== "" ? themeManager.fontFamily : "Segoe UI"
+    readonly property color cBgMain: (typeof themeManager !== "undefined" && themeManager) ? themeManager.bgMain : "#08090d"
+    readonly property color cPanelBg: (typeof themeManager !== "undefined" && themeManager) ? themeManager.panelBg : "#10121a"
+    readonly property color cSurface: (typeof themeManager !== "undefined" && themeManager) ? themeManager.surface : "#181a26"
+    readonly property color cAccent: (typeof themeManager !== "undefined" && themeManager) ? themeManager.accent : "#8b5cf6"
+    readonly property color cAccentGlow: (typeof themeManager !== "undefined" && themeManager) ? themeManager.accentGlow : "#3b2d66"
+    readonly property color cTextMain: (typeof themeManager !== "undefined" && themeManager) ? themeManager.textMain : "#f8fafc"
+    readonly property color cTextDim: (typeof themeManager !== "undefined" && themeManager) ? themeManager.textDim : "#717b94"
+    readonly property color cBorder: (typeof themeManager !== "undefined" && themeManager) ? themeManager.border : "#1e2235"
+    readonly property string cFont: (typeof themeManager !== "undefined" && themeManager && themeManager.fontFamily !== "") ? themeManager.fontFamily : "Segoe UI"
 
     readonly property var eqLabels: ["60", "170", "350", "1k", "3.5k", "10k", "14k"]
     property real sidebarWidth: 320
@@ -151,7 +151,7 @@ Window {
             anchors.left: parent.left
             anchors.leftMargin: 16
             anchors.verticalCenter: parent.verticalCenter
-            text: themeManager.textOverrides["window_title"] || "ZENITH PLAYER"
+            text: (typeof themeManager !== "undefined" && themeManager && themeManager.textOverrides["window_title"]) ? themeManager.textOverrides["window_title"] : "ZENITH PLAYER"
             color: root.cAccent
             font.family: root.cFont
             font.pixelSize: 11
@@ -356,10 +356,10 @@ Window {
         Image {
             id: bgCustomImg
             anchors.fill: parent
-            source: themeManager.bgImageUrl
+            source: (typeof themeManager !== "undefined" && themeManager) ? themeManager.bgImageUrl : ""
             fillMode: Image.PreserveAspectCrop
             opacity: 0.18
-            visible: themeManager.bgImageUrl !== ""
+            visible: (typeof themeManager !== "undefined" && themeManager && themeManager.bgImageUrl !== "")
             ThemeAnimator { targetItem: bgCustomImg; targetName: "background_image" }
         }
 

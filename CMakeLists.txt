@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(ZenithPlayerDeluxe LANGUAGES CXX)
+project(ZenithPlayerDeluxe LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -12,7 +12,10 @@ set(CMAKE_AUTOUIC ON)
 
 find_package(Qt6 6.4 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickControls2 Network)
 
+file(GLOB LUA_SOURCES "Source/Lua/*.c")
+
 add_executable(ZenithPlayerDeluxe
+    ${LUA_SOURCES}
     Source/main.cpp
     Source/Player/find.hpp
     Source/Player/find.cpp
@@ -49,6 +52,7 @@ target_include_directories(ZenithPlayerDeluxe PRIVATE
     Source/Network
     Source/Theme
     Source/Utils
+    Source/Lua
 )
 
 target_link_libraries(ZenithPlayerDeluxe PRIVATE

@@ -296,26 +296,26 @@ Rectangle {
                         width: parent.width
                         spacing: 4
 
-                        Text { text: "Installed Themes (.zss):"; color: "#717b94"; font.pixelSize: 9 }
+                        Text { text: "Installed Themes (.lua):"; color: "#717b94"; font.pixelSize: 9 }
 
                         Repeater {
-                            model: themeManager.availableThemes
+                            model: (typeof themeManager !== "undefined" && themeManager) ? themeManager.availableThemes : []
 
                             delegate: Rectangle {
                                 width: parent.width
                                 height: 26
                                 radius: 4
-                                color: themeManager.currentTheme === modelData ? "#251b42" : (themeRowArea.containsMouse ? "#161824" : "transparent")
-                                border.color: themeManager.currentTheme === modelData ? "#8b5cf6" : "transparent"
+                                color: (typeof themeManager !== "undefined" && themeManager && themeManager.currentTheme === modelData) ? "#251b42" : (themeRowArea.containsMouse ? "#161824" : "transparent")
+                                border.color: (typeof themeManager !== "undefined" && themeManager && themeManager.currentTheme === modelData) ? "#8b5cf6" : "transparent"
 
                                 Text {
                                     anchors.left: parent.left
                                     anchors.leftMargin: 10
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: modelData
-                                    color: themeManager.currentTheme === modelData ? "#ffffff" : "#717b94"
+                                    color: (typeof themeManager !== "undefined" && themeManager && themeManager.currentTheme === modelData) ? "#ffffff" : "#717b94"
                                     font.pixelSize: 10
-                                    font.bold: themeManager.currentTheme === modelData
+                                    font.bold: (typeof themeManager !== "undefined" && themeManager && themeManager.currentTheme === modelData)
                                 }
 
                                 MouseArea {
@@ -323,7 +323,11 @@ Rectangle {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: themeManager.applyTheme(modelData)
+                                    onClicked: {
+                                        if (typeof themeManager !== "undefined" && themeManager) {
+                                            themeManager.applyTheme(modelData)
+                                        }
+                                    }
                                 }
                             }
                         }
